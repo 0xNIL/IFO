@@ -1,0 +1,9 @@
+{
+  "name": "0xnil-factory",
+  "version": "0.0.1",
+  "description": "The 0xNIL factory",
+  "devDependencies": {},
+  "dependencies": {
+    "zeppelin-solidity": "^1.2.0"
+  }
+}
