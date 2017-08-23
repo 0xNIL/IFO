@@ -28,6 +28,8 @@ contract FreeDist0xNIL is Ownable {
 
   uint public tokenDistributed;
 
+  uint public tokenMinted;
+
   uint public totalParticipants;
 
   address public artist;
@@ -37,6 +39,8 @@ contract FreeDist0xNIL is Ownable {
   uint8 public totalSupporters;
 
   uint public totalSupportersRatios;
+
+event TokenToSupporters();
 
   mapping (address => uint8) public supporters;
   mapping (uint8 => address) public supporterAddress;
@@ -91,12 +95,14 @@ contract FreeDist0xNIL is Ownable {
   }
 
   function reserveTokensToSupporters() internal constant returns (bool) {
-    require(tokenDistributed > 0 && tokenDistributed % 100 == 0);
     token.mint(totalSupportersRatios);
+    tokenMinted += totalSupportersRatios;
     for (uint8 i = 0; i < totalSupporters; i++) {
       address supporter = supporterAddress[i];
       reservedBalances[supporter] = reservedBalances[supporter].add(supporters[supporter]);
     }
+    TokenToSupporters();
+    return true;
   }
 
   function() payable {
@@ -107,6 +113,7 @@ contract FreeDist0xNIL is Ownable {
 
       token.mint(TOKENS + TIP);
       tokenDistributed += TOKENS;
+      tokenMinted += TOKENS + TIP;
 
       if (reservedBalances[msg.sender] == 0) {
         totalParticipants++;
@@ -120,7 +127,9 @@ contract FreeDist0xNIL is Ownable {
         artist.transfer(msg.value);
       }
 
-      reserveTokensToSupporters();
+      if (tokenDistributed % 100 == 0) {
+        reserveTokensToSupporters();
+      }
     }
     else if (hasEnded()) {
       token.finishMinting();
