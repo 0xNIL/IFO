@@ -31,6 +31,16 @@ contract('FreeDist0xNIL', function (accounts) {
     })
   })
 
+  it('should isInitiated return false', () => {
+    let dist
+    return FreeDist0xNIL.deployed().then(instance => {
+      dist = instance
+      return dist.isInitiated()
+    }).then(result => {
+      assert.equal(result.valueOf(), false)
+    })
+  })
+
   it('should return an initial token balance of 0 for account[0]', () => {
     let dist
     return FreeDist0xNIL.deployed().then(instance => {
@@ -62,7 +72,11 @@ contract('FreeDist0xNIL', function (accounts) {
     return FreeDist0xNIL.deployed().then(instance => {
       dist = instance
       return dist.sendTransaction({from: accounts[0], value: 1})
-    }).catch(() => {
+    }).then(result => {
+      console.log(result.valueOf())
+    })
+
+        .catch(() => {
       assert(true)
     })
 
@@ -206,6 +220,16 @@ contract('FreeDist0xNIL', function (accounts) {
       assert.equal(balance2.valueOf(), 20)
       assert.equal(balance3.valueOf(), 30)
       assert.equal(balance4.valueOf(), 10)
+    })
+  })
+
+  it('should hasEnded return true', () => {
+    let dist
+    return FreeDist0xNIL.deployed().then(instance => {
+      dist = instance
+      return dist.hasEnded()
+    }).then(result => {
+      assert.equal(result.valueOf(), true)
     })
   })
 

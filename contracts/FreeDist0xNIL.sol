@@ -34,6 +34,13 @@ contract FreeDist0xNIL is Ownable {
 
   mapping (address => uint) public reservedBalances;
 
+  uint8 public totalSupporters;
+
+  uint public totalSupportersRatios;
+
+  mapping (address => uint8) public supporters;
+  mapping (uint8 => address) public supporterAddress;
+
   function start(uint _startBlock, uint _endBlock, address _artist) onlyOwner payable {
     require(!isInitiated());
     require(_startBlock >= block.number);
@@ -58,6 +65,40 @@ contract FreeDist0xNIL is Ownable {
     endBlock = _endBlock;
   }
 
+  function addSupporter(address _supporter, uint8 _ratio) onlyOwner payable {
+    require(!isInitiated());
+    require(_ratio >= 0 && _ratio <= 3);
+    require(_supporter != 0x0);
+
+    uint8 id;
+    uint8 previousRatio;
+    bool supporterExists = false;
+    for (uint8 i = 0; i < totalSupporters; i++) {
+      address supporter = supporterAddress[i];
+      if (supporter == _supporter) {
+        supporterExists = true;
+        id = i;
+        previousRatio = supporters[supporter];
+        break;
+      }
+    }
+    if (!supporterExists) {
+      id = totalSupporters++;
+      supporterAddress[id] = _supporter;
+    }
+    supporters[_supporter] = _ratio;
+    totalSupportersRatios += _ratio - previousRatio;
+  }
+
+  function reserveTokensToSupporters() internal constant returns (bool) {
+    require(tokenDistributed > 0 && tokenDistributed % 100 == 0);
+    token.mint(totalSupportersRatios);
+    for (uint8 i = 0; i < totalSupporters; i++) {
+      address supporter = supporterAddress[i];
+      reservedBalances[supporter] = reservedBalances[supporter].add(supporters[supporter]);
+    }
+  }
+
   function() payable {
     require(msg.sender != 0x0);
 
@@ -78,6 +119,8 @@ contract FreeDist0xNIL is Ownable {
         weiDonated = weiDonated.add(msg.value);
         artist.transfer(msg.value);
       }
+
+      reserveTokensToSupporters();
     }
     else if (hasEnded()) {
       token.finishMinting();
