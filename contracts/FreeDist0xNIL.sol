@@ -28,11 +28,22 @@ contract FreeDist0xNIL is Ownable {
 
   uint public tokenDistributed;
 
+  uint public tokenMinted;
+
   uint public totalParticipants;
 
   address public artist;
 
   mapping (address => uint) public reservedBalances;
+
+  uint8 public totalSupporters;
+
+  uint public totalSupportersRatios;
+
+event TokenToSupporters();
+
+  mapping (address => uint8) public supporters;
+  mapping (uint8 => address) public supporterAddress;
 
   function start(uint _startBlock, uint _endBlock, address _artist) onlyOwner payable {
     require(!isInitiated());
@@ -58,6 +69,42 @@ contract FreeDist0xNIL is Ownable {
     endBlock = _endBlock;
   }
 
+  function addSupporter(address _supporter, uint8 _ratio) onlyOwner payable {
+    require(!isInitiated());
+    require(_ratio >= 0 && _ratio <= 3);
+    require(_supporter != 0x0);
+
+    uint8 id;
+    uint8 previousRatio;
+    bool supporterExists = false;
+    for (uint8 i = 0; i < totalSupporters; i++) {
+      address supporter = supporterAddress[i];
+      if (supporter == _supporter) {
+        supporterExists = true;
+        id = i;
+        previousRatio = supporters[supporter];
+        break;
+      }
+    }
+    if (!supporterExists) {
+      id = totalSupporters++;
+      supporterAddress[id] = _supporter;
+    }
+    supporters[_supporter] = _ratio;
+    totalSupportersRatios += _ratio - previousRatio;
+  }
+
+  function reserveTokensToSupporters() internal constant returns (bool) {
+    token.mint(totalSupportersRatios);
+    tokenMinted += totalSupportersRatios;
+    for (uint8 i = 0; i < totalSupporters; i++) {
+      address supporter = supporterAddress[i];
+      reservedBalances[supporter] = reservedBalances[supporter].add(supporters[supporter]);
+    }
+    TokenToSupporters();
+    return true;
+  }
+
   function() payable {
     require(msg.sender != 0x0);
 
@@ -66,6 +113,7 @@ contract FreeDist0xNIL is Ownable {
 
       token.mint(TOKENS + TIP);
       tokenDistributed += TOKENS;
+      tokenMinted += TOKENS + TIP;
 
       if (reservedBalances[msg.sender] == 0) {
         totalParticipants++;
@@ -77,6 +125,10 @@ contract FreeDist0xNIL is Ownable {
       if (msg.value > 0) {
         weiDonated = weiDonated.add(msg.value);
         artist.transfer(msg.value);
+      }
+
+      if (tokenDistributed % 100 == 0) {
+        reserveTokensToSupporters();
       }
     }
     else if (hasEnded()) {

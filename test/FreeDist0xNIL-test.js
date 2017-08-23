@@ -31,13 +31,71 @@ contract('FreeDist0xNIL', function (accounts) {
     })
   })
 
-  it('should return an initial token balance of 0 for account[0]', () => {
+  it('should isInitiated return false', () => {
+    let dist
+    return FreeDist0xNIL.deployed().then(instance => {
+      dist = instance
+      return dist.isInitiated()
+    }).then(result => {
+      assert.equal(result.valueOf(), false)
+    })
+  })
+
+  it('should return an initial token balance of 0 for accounts[0]', () => {
     let dist
     return FreeDist0xNIL.deployed().then(instance => {
       dist = instance
       return dist.reservedBalanceOf(accounts[0])
     }).then(result => {
       assert.equal(result.valueOf(), 0)
+    })
+  })
+
+  it('should add two supporters: accounts[6] and accounts[7]', () => {
+    let dist
+    return FreeDist0xNIL.deployed().then(instance => {
+      dist = instance
+      return dist.addSupporter(accounts[6], 1)
+    }).then(result => {
+      return dist.addSupporter(accounts[7], 2)
+    }).then(result => {
+      return Promise.all([
+        dist.supporterAddress.call(0),
+        dist.supporterAddress.call(1),
+        dist.supporters.call(accounts[6]),
+        dist.supporters.call(accounts[7]),
+        dist.totalSupporters.call(),
+        dist.totalSupportersRatios.call()
+      ])
+    }).then(([supporter0, supporter1, ratio0, ratio1, totalSupporters, totalSupportersRatios]) => {
+      assert.equal(supporter0.valueOf(), accounts[6])
+      assert.equal(supporter1.valueOf(), accounts[7])
+      assert.equal(ratio0.valueOf(), 1)
+      assert.equal(ratio1.valueOf(), 2)
+      assert.equal(totalSupporters.valueOf(), 2)
+      assert.equal(totalSupportersRatios.valueOf(), 3)
+    })
+  })
+
+  it('should add a new supporters accounts[8] and change accounts[7] ratio', () => {
+    let dist
+    return FreeDist0xNIL.deployed().then(instance => {
+      dist = instance
+      return dist.addSupporter(accounts[7], 3)
+    }).then(result => {
+      return dist.addSupporter(accounts[8], 2)
+    }).then(result => {
+      return Promise.all([
+        dist.supporterAddress.call(1),
+        dist.supporterAddress.call(2),
+        dist.supporters.call(accounts[7]),
+        dist.supporters.call(accounts[8])
+      ])
+    }).then(([supporter1, supporter2, ratio1, ratio2]) => {
+      assert.equal(supporter1.valueOf(), accounts[7])
+      assert.equal(supporter2.valueOf(), accounts[8])
+      assert.equal(ratio1.valueOf(), 3)
+      assert.equal(ratio2.valueOf(), 2)
     })
   })
 
@@ -53,6 +111,16 @@ contract('FreeDist0xNIL', function (accounts) {
       return dist.isInitiated()
     }).then(result => {
       assert.equal(result.valueOf(), true)
+    })
+  })
+
+  it('should throw adding a new supporter accounts[9]', () => {
+    let dist
+    return FreeDist0xNIL.deployed().then(instance => {
+      dist = instance
+      return dist.addSupporter(accounts[9], 1)
+    }).catch(() => {
+      assert(true)
     })
   })
 
@@ -117,25 +185,52 @@ contract('FreeDist0xNIL', function (accounts) {
     }).then(() => {
       return dist.sendTransaction({from: accounts[4], value: 0})
     }).then(() => {
+      return dist.sendTransaction({from: accounts[4], value: 0})
+    }).then(() => {
+      return dist.sendTransaction({from: accounts[4], value: 0})
+    }).then(() => {
       return Promise.all([
-        dist.reservedBalanceOf(accounts[0]),
         dist.reservedBalanceOf(artist),
         dist.reservedBalanceOf(accounts[2]),
         dist.reservedBalanceOf(accounts[3]),
         dist.reservedBalanceOf(accounts[4]),
         dist.totalParticipants.call(),
         dist.tokenDistributed.call(),
-        dist.weiDonated.call()
+        dist.weiDonated.call(),
+        dist.tokenMinted.call()
       ])
-    }).then(([balance0, balance1, balance2, balance3, balance4, participants, distributed, weiDonated]) => {
-      assert.equal(balance0.valueOf(), 10)
-      assert.equal(balance1.valueOf(), 7)
+    }).then(([balance1, balance2, balance3, balance4, participants, distributed, weiDonated, tokenMinted]) => {
+      assert.equal(balance1.valueOf(), 9)
       assert.equal(balance2.valueOf(), 20)
       assert.equal(balance3.valueOf(), 30)
-      assert.equal(balance4.valueOf(), 10)
+      assert.equal(balance4.valueOf(), 30)
       assert.equal(participants.valueOf(), 4)
-      assert.equal(distributed.valueOf(), 70)
+      assert.equal(distributed.valueOf(), 90)
       assert.equal(weiDonated.valueOf(), 400)
+      assert.equal(tokenMinted.valueOf(), 99)
+    })
+
+  })
+
+
+  it('should assign tokens to supporters', () => {
+
+    let dist
+    return FreeDist0xNIL.deployed().then(instance => {
+      dist = instance
+      return dist.sendTransaction({from: accounts[2], value: 0})
+    }).then(() => {
+      return Promise.all([
+        dist.reservedBalanceOf(accounts[6]),
+        dist.reservedBalanceOf(accounts[7]),
+        dist.reservedBalanceOf(accounts[8]),
+        dist.tokenMinted.call()
+      ])
+    }).then(([balance6, balance7, balance8, tokenMinted]) => {
+      assert.equal(balance6.valueOf(), 1)
+      assert.equal(balance7.valueOf(), 3)
+      assert.equal(balance8.valueOf(), 2)
+      assert.equal(tokenMinted.valueOf(), 116)
     })
 
   })
@@ -200,12 +295,36 @@ contract('FreeDist0xNIL', function (accounts) {
       return Promise.all([
         dist.tokenBalanceOf(accounts[2]),
         dist.tokenBalanceOf(accounts[3]),
-        dist.tokenBalanceOf(accounts[4])
+        dist.tokenBalanceOf(accounts[4]),
+        dist.reservedBalanceOf(accounts[2])
       ])
-    }).then(([balance2, balance3, balance4]) => {
-      assert.equal(balance2.valueOf(), 20)
+    }).then(([balance2, balance3, balance4, balance2b]) => {
+      assert.equal(balance2.valueOf(), 30)
       assert.equal(balance3.valueOf(), 30)
-      assert.equal(balance4.valueOf(), 10)
+      assert.equal(balance4.valueOf(), 30)
+      assert.equal(balance2b.valueOf(), 0)
+    })
+  })
+
+
+  it('should throw if trying to withdraw again', () => {
+    let dist
+    return FreeDist0xNIL.deployed().then(instance => {
+      dist = instance
+      return dist.sendTransaction({from: accounts[2], value: 0})
+    }).catch(() => {
+      assert(true);
+    })
+  })
+
+
+  it('should hasEnded return true', () => {
+    let dist
+    return FreeDist0xNIL.deployed().then(instance => {
+      dist = instance
+      return dist.hasEnded()
+    }).then(result => {
+      assert.equal(result.valueOf(), true)
     })
   })
 
@@ -243,6 +362,5 @@ contract('FreeDist0xNIL', function (accounts) {
       assert(true)
     })
   })
-
 
 })
