@@ -1,2 +1,4 @@
 # factory
-Contracts for the free distribution
+
+Contracts for the NIL token and the realted free distribution
+
