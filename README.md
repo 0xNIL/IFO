@@ -1,4 +1,4 @@
-# factory
+# 0xNIL factory
 
 Contracts for the NIL token and the related free distribution
 
