@@ -140,7 +140,7 @@ contract('FreeDist0xNIL', function (accounts) {
 
     let dist
 
-    let iterate = () => {
+    const iterate = () => {
       // iterates until the transaction succeds, i.e. startBlock >= eth.blockNumber
       return dist.sendTransaction({from: accounts[0], value: 0}).then(() => {
         return dist.isActive.call()
@@ -158,14 +158,14 @@ contract('FreeDist0xNIL', function (accounts) {
     }).then(() => {
       return dist.tokenDistributed.call()
     }).then(result => {
-      assert.equal(result.valueOf(), 20)
+      assert.equal(result.valueOf(), 2)
     }).then(() => {
       return dist.totalParticipants.call()
     }).then(result => {
       assert.equal(result.valueOf(), 2)
       return dist.reservedBalanceOf(accounts[2])
     }).then(result => {
-      assert.equal(result.valueOf(), 10)
+      assert.equal(result.valueOf(), 1)
     })
 
   })
@@ -175,13 +175,13 @@ contract('FreeDist0xNIL', function (accounts) {
     let dist
     return FreeDist0xNIL.deployed().then(instance => {
       dist = instance
-      return dist.sendTransaction({from: accounts[2], value: 100})
+      return dist.sendTransaction({from: accounts[2], value: 1})
     }).then(() => {
       return dist.sendTransaction({from: accounts[3], value: 0})
     }).then(() => {
       return dist.sendTransaction({from: accounts[3], value: 0})
     }).then(() => {
-      return dist.sendTransaction({from: accounts[3], value: 300})
+      return dist.sendTransaction({from: accounts[3], value: 1})
     }).then(() => {
       return dist.sendTransaction({from: accounts[4], value: 0})
     }).then(() => {
@@ -196,41 +196,80 @@ contract('FreeDist0xNIL', function (accounts) {
         dist.reservedBalanceOf(accounts[4]),
         dist.totalParticipants.call(),
         dist.tokenDistributed.call(),
-        dist.weiDonated.call(),
         dist.tokenMinted.call()
       ])
-    }).then(([balance1, balance2, balance3, balance4, participants, distributed, weiDonated, tokenMinted]) => {
-      assert.equal(balance1.valueOf(), 9)
-      assert.equal(balance2.valueOf(), 20)
-      assert.equal(balance3.valueOf(), 30)
-      assert.equal(balance4.valueOf(), 30)
+    }).then(([balance1, balance2, balance3, balance4, participants, distributed, tokenMinted]) => {
+      assert.equal(balance1.valueOf(), 0)
+      assert.equal(balance2.valueOf(), 2)
+      assert.equal(balance3.valueOf(), 3)
+      assert.equal(balance4.valueOf(), 3)
       assert.equal(participants.valueOf(), 4)
-      assert.equal(distributed.valueOf(), 90)
-      assert.equal(weiDonated.valueOf(), 400)
-      assert.equal(tokenMinted.valueOf(), 99)
+      assert.equal(distributed.valueOf(), 9)
+      assert.equal(tokenMinted.valueOf(), 9)
     })
 
   })
 
-
-  it('should assign tokens to supporters', () => {
-
+  it('should throw if sending more than 1 wei', () => {
     let dist
     return FreeDist0xNIL.deployed().then(instance => {
       dist = instance
-      return dist.sendTransaction({from: accounts[2], value: 0})
+      return dist.sendTransaction({from: accounts[2], value: 10})
+    }).catch(() => {
+      assert(true);
+    })
+  })
+
+  it('should assign 50 tokens each to accounts 5 and 9', () => {
+    let dist
+
+    const iterate = (account, counter) => {
+      return dist.sendTransaction({from: account, value: 0}).then(() => {
+        if (--counter > 0) {
+          return iterate(account, counter)
+        } else {
+          return Promise.resolve(true)
+        }
+      })
+    }
+
+    return FreeDist0xNIL.deployed().then(instance => {
+      dist = instance
+      return Promise.all([
+        iterate(accounts[5], 50),
+        iterate(accounts[9], 50)
+      ])
     }).then(() => {
+      return Promise.all([
+        dist.reservedBalanceOf(artist),
+        dist.reservedBalanceOf(accounts[5]),
+        dist.reservedBalanceOf(accounts[9]),
+        dist.tokenDistributed.call(),
+        dist.tokenMinted.call()
+      ])
+    }).then(([balance1, balance5, balance9, tokenDistributed, tokenMinted]) => {
+      assert.equal(balance1.valueOf(), 20)
+      assert.equal(balance5.valueOf(), 50)
+      assert.equal(balance9.valueOf(), 50)
+      assert.equal(tokenDistributed.valueOf(), 109)
+      assert.equal(tokenMinted.valueOf(), 135)
+    })
+
+  })
+
+  it('should verify that tokens have been assigned to supporters', () => {
+    let dist
+    return FreeDist0xNIL.deployed().then(instance => {
+      dist = instance
       return Promise.all([
         dist.reservedBalanceOf(accounts[6]),
         dist.reservedBalanceOf(accounts[7]),
-        dist.reservedBalanceOf(accounts[8]),
-        dist.tokenMinted.call()
+        dist.reservedBalanceOf(accounts[8])
       ])
-    }).then(([balance6, balance7, balance8, tokenMinted]) => {
+    }).then(([balance6, balance7, balance8]) => {
       assert.equal(balance6.valueOf(), 1)
       assert.equal(balance7.valueOf(), 3)
       assert.equal(balance8.valueOf(), 2)
-      assert.equal(tokenMinted.valueOf(), 116)
     })
 
   })
@@ -251,7 +290,7 @@ contract('FreeDist0xNIL', function (accounts) {
 
     let dist
 
-    let iterate = () => {
+    const iterate = () => {
       // iterates until the transaction fails, i.e. endBlock < eth.blockNumber
       return dist.sendTransaction({from: accounts[0], value: 0}).then(() => {
         return iterate()
@@ -299,9 +338,9 @@ contract('FreeDist0xNIL', function (accounts) {
         dist.reservedBalanceOf(accounts[2])
       ])
     }).then(([balance2, balance3, balance4, balance2b]) => {
-      assert.equal(balance2.valueOf(), 30)
-      assert.equal(balance3.valueOf(), 30)
-      assert.equal(balance4.valueOf(), 30)
+      assert.equal(balance2.valueOf(), 2)
+      assert.equal(balance3.valueOf(), 3)
+      assert.equal(balance4.valueOf(), 3)
       assert.equal(balance2b.valueOf(), 0)
     })
   })

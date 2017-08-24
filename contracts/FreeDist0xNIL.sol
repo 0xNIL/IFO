@@ -12,19 +12,13 @@ contract FreeDist0xNIL is Ownable {
 
   event Initiated();
 
-  uint8 public TOKENS = 10;
-
-  uint8 public TIP = 1;
-
-  uint public MAX = 1000;
+  uint public MAX = 100;
 
   Token0xNIL public token;
 
   uint public startBlock;
 
   uint public endBlock;
-
-  uint public weiDonated;
 
   uint public tokenDistributed;
 
@@ -107,26 +101,26 @@ event TokenToSupporters();
 
   function() payable {
     require(msg.sender != 0x0);
+    require(msg.value <= 1);
 
     if (isActive()) {
       require(reservedBalances[msg.sender] <= MAX);
 
-      token.mint(TOKENS + TIP);
-      tokenDistributed += TOKENS;
-      tokenMinted += TOKENS + TIP;
+      token.mint(1);
+      tokenMinted++;
+      tokenDistributed++;
 
       if (reservedBalances[msg.sender] == 0) {
         totalParticipants++;
       }
 
-      reservedBalances[msg.sender] = reservedBalances[msg.sender].add(TOKENS);
-      reservedBalances[artist] = reservedBalances[artist].add(TIP);
+      reservedBalances[msg.sender] = reservedBalances[msg.sender].add(1);
 
-      if (msg.value > 0) {
-        weiDonated = weiDonated.add(msg.value);
-        artist.transfer(msg.value);
+      if (tokenDistributed % 10 == 0) {
+        token.mint(2);
+        tokenMinted += 2;
+        reservedBalances[artist] = reservedBalances[artist].add(2);
       }
-
       if (tokenDistributed % 100 == 0) {
         reserveTokensToSupporters();
       }
