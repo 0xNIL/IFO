@@ -220,7 +220,7 @@ contract('FreeDist0xNIL', function (accounts) {
     })
   })
 
-  it('should assign 50 tokens each to accounts 5 and 9', () => {
+  it('should assign 100 tokens each to accounts 5 and 9', () => {
     let dist
 
     const iterate = (account, counter) => {
@@ -236,23 +236,47 @@ contract('FreeDist0xNIL', function (accounts) {
     return FreeDist0xNIL.deployed().then(instance => {
       dist = instance
       return Promise.all([
-        iterate(accounts[5], 50),
-        iterate(accounts[9], 50)
+        iterate(accounts[10], 10),
+        iterate(accounts[11], 10),
+        iterate(accounts[12], 10),
+        iterate(accounts[13], 10),
+        iterate(accounts[14], 10),
+        iterate(accounts[15], 10),
+        iterate(accounts[16], 10),
+        iterate(accounts[17], 10),
+        iterate(accounts[18], 10),
+        iterate(accounts[19], 10)
       ])
     }).then(() => {
       return Promise.all([
         dist.reservedBalanceOf(artist),
-        dist.reservedBalanceOf(accounts[5]),
-        dist.reservedBalanceOf(accounts[9]),
+        dist.reservedBalanceOf(accounts[10]),
+        dist.reservedBalanceOf(accounts[11]),
+        dist.reservedBalanceOf(accounts[12]),
+        dist.reservedBalanceOf(accounts[13]),
+        dist.reservedBalanceOf(accounts[14]),
+        dist.reservedBalanceOf(accounts[15]),
+        dist.reservedBalanceOf(accounts[16]),
+        dist.reservedBalanceOf(accounts[17]),
+        dist.reservedBalanceOf(accounts[18]),
+        dist.reservedBalanceOf(accounts[19]),
         dist.tokenDistributed.call(),
         dist.tokenMinted.call()
       ])
-    }).then(([balance1, balance5, balance9, tokenDistributed, tokenMinted]) => {
-      assert.equal(balance1.valueOf(), 20)
-      assert.equal(balance5.valueOf(), 50)
-      assert.equal(balance9.valueOf(), 50)
+    }).then(([balance1, balance10, balance11, balance12, balance13, balance14, balance15, balance16, balance17, balance18, balance19, tokenDistributed, tokenMinted]) => {
+      assert.equal(balance1.valueOf(), 30)
+      assert.equal(balance10.valueOf(), 10)
+      assert.equal(balance11.valueOf(), 10)
+      assert.equal(balance12.valueOf(), 10)
+      assert.equal(balance13.valueOf(), 10)
+      assert.equal(balance14.valueOf(), 10)
+      assert.equal(balance15.valueOf(), 10)
+      assert.equal(balance16.valueOf(), 10)
+      assert.equal(balance17.valueOf(), 10)
+      assert.equal(balance18.valueOf(), 10)
+      assert.equal(balance19.valueOf(), 10)
       assert.equal(tokenDistributed.valueOf(), 109)
-      assert.equal(tokenMinted.valueOf(), 135)
+      assert.equal(tokenMinted.valueOf(), 145)
     })
 
   })
