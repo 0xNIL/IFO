@@ -117,9 +117,9 @@ event TokenToSupporters();
       reservedBalances[msg.sender] = reservedBalances[msg.sender].add(1);
 
       if (tokenDistributed % 10 == 0) {
-        token.mint(3);
-        tokenMinted += 3;
-        reservedBalances[artist] = reservedBalances[artist].add(3);
+        token.mint(1);
+        tokenMinted++;
+        reservedBalances[artist] = reservedBalances[artist].add(1);
       }
       if (tokenDistributed % 100 == 0) {
         reserveTokensToSupporters();

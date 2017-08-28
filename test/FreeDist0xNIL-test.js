@@ -264,7 +264,7 @@ contract('FreeDist0xNIL', function (accounts) {
         dist.tokenMinted.call()
       ])
     }).then(([balance1, balance10, balance11, balance12, balance13, balance14, balance15, balance16, balance17, balance18, balance19, tokenDistributed, tokenMinted]) => {
-      assert.equal(balance1.valueOf(), 30)
+      assert.equal(balance1.valueOf(), 10)
       assert.equal(balance10.valueOf(), 10)
       assert.equal(balance11.valueOf(), 10)
       assert.equal(balance12.valueOf(), 10)
@@ -276,7 +276,7 @@ contract('FreeDist0xNIL', function (accounts) {
       assert.equal(balance18.valueOf(), 10)
       assert.equal(balance19.valueOf(), 10)
       assert.equal(tokenDistributed.valueOf(), 109)
-      assert.equal(tokenMinted.valueOf(), 145)
+      assert.equal(tokenMinted.valueOf(), 125)
     })
 
   })
