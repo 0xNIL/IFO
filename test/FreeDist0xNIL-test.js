@@ -7,6 +7,7 @@ contract('FreeDist0xNIL', function (accounts) {
   let current
   let startBlock
   let endBlock
+  let duration
   let artist = accounts[1]
 
   it('should be waiting to start', () => {
@@ -19,13 +20,11 @@ contract('FreeDist0xNIL', function (accounts) {
     })
   })
 
-  it('should throw an error if call changeEndBlock before starting', () => {
+  it('should throw an error if call changeDuration before starting', () => {
     let dist
     return FreeDist0xNIL.deployed().then(instance => {
       dist = instance
-      current = web3.eth.blockNumber
-      endBlock = current + 10
-      return dist.changeEndBlock(endBlock)
+      return dist.changeDuration(100)
     }).catch(err => {
       assert(true)
     })
@@ -41,86 +40,25 @@ contract('FreeDist0xNIL', function (accounts) {
     })
   })
 
-  it('should return an initial token balance of 0 for accounts[0]', () => {
-    let dist
-    return FreeDist0xNIL.deployed().then(instance => {
-      dist = instance
-      return dist.reservedBalanceOf(accounts[0])
-    }).then(result => {
-      assert.equal(result.valueOf(), 0)
-    })
-  })
-
-  it('should add two supporters: accounts[6] and accounts[7]', () => {
-    let dist
-    return FreeDist0xNIL.deployed().then(instance => {
-      dist = instance
-      return dist.addSupporter(accounts[6], 1)
-    }).then(result => {
-      return dist.addSupporter(accounts[7], 2)
-    }).then(result => {
-      return Promise.all([
-        dist.supporterAddress.call(0),
-        dist.supporterAddress.call(1),
-        dist.supporters.call(accounts[6]),
-        dist.supporters.call(accounts[7]),
-        dist.totalSupporters.call(),
-        dist.totalSupportersRatios.call()
-      ])
-    }).then(([supporter0, supporter1, ratio0, ratio1, totalSupporters, totalSupportersRatios]) => {
-      assert.equal(supporter0.valueOf(), accounts[6])
-      assert.equal(supporter1.valueOf(), accounts[7])
-      assert.equal(ratio0.valueOf(), 1)
-      assert.equal(ratio1.valueOf(), 2)
-      assert.equal(totalSupporters.valueOf(), 2)
-      assert.equal(totalSupportersRatios.valueOf(), 3)
-    })
-  })
-
-  it('should add a new supporters accounts[8] and change accounts[7] ratio', () => {
-    let dist
-    return FreeDist0xNIL.deployed().then(instance => {
-      dist = instance
-      return dist.addSupporter(accounts[7], 3)
-    }).then(result => {
-      return dist.addSupporter(accounts[8], 2)
-    }).then(result => {
-      return Promise.all([
-        dist.supporterAddress.call(1),
-        dist.supporterAddress.call(2),
-        dist.supporters.call(accounts[7]),
-        dist.supporters.call(accounts[8])
-      ])
-    }).then(([supporter1, supporter2, ratio1, ratio2]) => {
-      assert.equal(supporter1.valueOf(), accounts[7])
-      assert.equal(supporter2.valueOf(), accounts[8])
-      assert.equal(ratio1.valueOf(), 3)
-      assert.equal(ratio2.valueOf(), 2)
-    })
-  })
-
   it('should initiate the distribution', () => {
     let dist
     return FreeDist0xNIL.deployed().then(instance => {
       dist = instance
       current = web3.eth.blockNumber
-      startBlock = current + 5
-      endBlock = current + 1000
-      return dist.start(startBlock, endBlock, artist)
+      startBlock = current + 10
+      duration = 300
+      endBlock = startBlock + duration
+      return dist.startDistribution(startBlock, duration, artist)
     }).then(() => {
-      return dist.isInitiated()
-    }).then(result => {
-      assert.equal(result.valueOf(), true)
-    })
-  })
-
-  it('should throw adding a new supporter accounts[9]', () => {
-    let dist
-    return FreeDist0xNIL.deployed().then(instance => {
-      dist = instance
-      return dist.addSupporter(accounts[9], 1)
-    }).catch(() => {
-      assert(true)
+      return Promise.all([
+        dist.isInitiated(),
+        dist.endBlock.call()
+      ])
+    }).then(([isInitiated, _endBlock]) => {
+      assert.equal(isInitiated.valueOf(), true)
+      assert.equal(_endBlock, endBlock)
+    }).catch(err => {
+      console.error('err', err)
     })
   })
 
@@ -143,7 +81,7 @@ contract('FreeDist0xNIL', function (accounts) {
     const iterate = () => {
       // iterates until the transaction succeds, i.e. startBlock >= eth.blockNumber
       return dist.sendTransaction({from: accounts[0], value: 0}).then(() => {
-        return dist.isActive.call()
+        return dist.isActive()
       }).catch(() => {
         return iterate()
       })
@@ -155,17 +93,21 @@ contract('FreeDist0xNIL', function (accounts) {
     }).then(isActive => {
       assert.equal(isActive, true)
       return dist.sendTransaction({from: accounts[2], value: 0})
-    }).then(() => {
-      return dist.tokenDistributed.call()
     }).then(result => {
-      assert.equal(result.valueOf(), 2)
-    }).then(() => {
-      return dist.totalParticipants.call()
-    }).then(result => {
-      assert.equal(result.valueOf(), 2)
-      return dist.reservedBalanceOf(accounts[2])
-    }).then(result => {
-      assert.equal(result.valueOf(), 1)
+
+      return Promise.all([
+        dist.tokenDistributed.call(),
+        dist.totalParticipants.call(),
+        dist.totalSupply(),
+        dist.tokenBalanceOf(accounts[2]),
+        dist.tokenBalanceOf(artist)
+      ])
+    }).then(([tokenDistributed, totalParticipants, totalSupply, balance, aBalance]) => {
+      assert.equal(tokenDistributed.valueOf(), 20)
+      assert.equal(totalParticipants.valueOf(), 2)
+      assert.equal(totalSupply.valueOf(), 20)
+      assert.equal(balance.valueOf(), 10)
+      assert.equal(aBalance.valueOf(), 0)
     })
 
   })
@@ -175,37 +117,32 @@ contract('FreeDist0xNIL', function (accounts) {
     let dist
     return FreeDist0xNIL.deployed().then(instance => {
       dist = instance
-      return dist.sendTransaction({from: accounts[2], value: 1})
-    }).then(() => {
-      return dist.sendTransaction({from: accounts[3], value: 0})
-    }).then(() => {
-      return dist.sendTransaction({from: accounts[3], value: 0})
-    }).then(() => {
-      return dist.sendTransaction({from: accounts[3], value: 1})
-    }).then(() => {
-      return dist.sendTransaction({from: accounts[4], value: 0})
-    }).then(() => {
-      return dist.sendTransaction({from: accounts[4], value: 0})
-    }).then(() => {
-      return dist.sendTransaction({from: accounts[4], value: 0})
+      return Promise.all([
+        dist.sendTransaction({from: accounts[2], value: 1}),
+        dist.sendTransaction({from: accounts[3], value: 0}),
+        dist.sendTransaction({from: accounts[3], value: 0}),
+        dist.sendTransaction({from: accounts[3], value: 1}),
+        dist.sendTransaction({from: accounts[4], value: 0}),
+        dist.sendTransaction({from: accounts[4], value: 0}),
+        dist.sendTransaction({from: accounts[4], value: 0}),
+        dist.sendTransaction({from: accounts[4], value: 0})
+      ])
     }).then(() => {
       return Promise.all([
-        dist.reservedBalanceOf(artist),
-        dist.reservedBalanceOf(accounts[2]),
-        dist.reservedBalanceOf(accounts[3]),
-        dist.reservedBalanceOf(accounts[4]),
+        dist.tokenBalanceOf(artist),
+        dist.tokenBalanceOf(accounts[2]),
+        dist.tokenBalanceOf(accounts[3]),
+        dist.tokenBalanceOf(accounts[4]),
         dist.totalParticipants.call(),
-        dist.tokenDistributed.call(),
-        dist.tokenMinted.call()
+        dist.tokenDistributed.call()
       ])
-    }).then(([balance1, balance2, balance3, balance4, participants, distributed, tokenMinted]) => {
+    }).then(([balance1, balance2, balance3, balance4, participants, distributed]) => {
       assert.equal(balance1.valueOf(), 0)
-      assert.equal(balance2.valueOf(), 2)
-      assert.equal(balance3.valueOf(), 3)
-      assert.equal(balance4.valueOf(), 3)
+      assert.equal(balance2.valueOf(), 20)
+      assert.equal(balance3.valueOf(), 30)
+      assert.equal(balance4.valueOf(), 40)
       assert.equal(participants.valueOf(), 4)
-      assert.equal(distributed.valueOf(), 9)
-      assert.equal(tokenMinted.valueOf(), 9)
+      assert.equal(distributed.valueOf(), 100)
     })
 
   })
@@ -220,7 +157,7 @@ contract('FreeDist0xNIL', function (accounts) {
     })
   })
 
-  it('should assign 100 tokens each to accounts 5 and 9', () => {
+  it('should assign ~60 tokens each to accounts from 11 to 18', () => {
     let dist
 
     const iterate = (account, counter) => {
@@ -235,77 +172,75 @@ contract('FreeDist0xNIL', function (accounts) {
 
     return FreeDist0xNIL.deployed().then(instance => {
       dist = instance
-      return Promise.all([
-        iterate(accounts[10], 10),
-        iterate(accounts[11], 10),
-        iterate(accounts[12], 10),
-        iterate(accounts[13], 10),
-        iterate(accounts[14], 10),
-        iterate(accounts[15], 10),
-        iterate(accounts[16], 10),
-        iterate(accounts[17], 10),
-        iterate(accounts[18], 10),
-        iterate(accounts[19], 10)
-      ])
+      return iterate(accounts[10], 10)
+          .then(() => iterate(accounts[11], 6))
+          .then(() => iterate(accounts[12], 6))
+          .then(() => iterate(accounts[13], 6))
+          .then(() => iterate(accounts[14], 6))
+          .then(() => iterate(accounts[15], 6))
+          .then(() => iterate(accounts[16], 6))
+          .then(() => iterate(accounts[17], 6))
+          .then(() => iterate(accounts[18], 6))
     }).then(() => {
       return Promise.all([
-        dist.reservedBalanceOf(artist),
-        dist.reservedBalanceOf(accounts[10]),
-        dist.reservedBalanceOf(accounts[11]),
-        dist.reservedBalanceOf(accounts[12]),
-        dist.reservedBalanceOf(accounts[13]),
-        dist.reservedBalanceOf(accounts[14]),
-        dist.reservedBalanceOf(accounts[15]),
-        dist.reservedBalanceOf(accounts[16]),
-        dist.reservedBalanceOf(accounts[17]),
-        dist.reservedBalanceOf(accounts[18]),
-        dist.reservedBalanceOf(accounts[19]),
-        dist.tokenDistributed.call(),
-        dist.tokenMinted.call()
+        dist.tokenBalanceOf(accounts[11]),
+        dist.tokenBalanceOf(accounts[12]),
+        dist.tokenBalanceOf(accounts[13]),
+        dist.tokenBalanceOf(accounts[14]),
+        dist.tokenBalanceOf(accounts[15]),
+        dist.tokenBalanceOf(accounts[16]),
+        dist.tokenBalanceOf(accounts[17]),
+        dist.tokenBalanceOf(accounts[18]),
+        dist.tokenDistributed.call()
       ])
-    }).then(([balance1, balance10, balance11, balance12, balance13, balance14, balance15, balance16, balance17, balance18, balance19, tokenDistributed, tokenMinted]) => {
-      assert.equal(balance1.valueOf(), 10)
-      assert.equal(balance10.valueOf(), 10)
-      assert.equal(balance11.valueOf(), 10)
-      assert.equal(balance12.valueOf(), 10)
-      assert.equal(balance13.valueOf(), 10)
-      assert.equal(balance14.valueOf(), 10)
-      assert.equal(balance15.valueOf(), 10)
-      assert.equal(balance16.valueOf(), 10)
-      assert.equal(balance17.valueOf(), 10)
-      assert.equal(balance18.valueOf(), 10)
-      assert.equal(balance19.valueOf(), 10)
-      assert.equal(tokenDistributed.valueOf(), 109)
-      assert.equal(tokenMinted.valueOf(), 125)
+    }).then(([balance11, balance12, balance13, balance14, balance15, balance16, balance17, balance18, tokenDistributed]) => {
+
+      assert.equal(balance11.valueOf(), 60)
+      assert.equal(balance12.valueOf(), 60)
+      assert.equal(balance13.valueOf(), 60)
+      assert.equal(balance14.valueOf(), 60)
+      assert.equal(balance15.valueOf(), 60)
+      assert.equal(balance16.valueOf(), 60)
+      assert.equal(balance17.valueOf(), 57)
+      assert.equal(balance18.valueOf(), 54)
+      assert.equal(tokenDistributed.valueOf(), 671)
     })
 
   })
 
-  it('should verify that tokens have been assigned to supporters', () => {
+  it('should limit the wallet to 100 tokens', () => {
     let dist
+
+    const iterate = account => {
+      return dist.sendTransaction({from: account, value: 0}).then(() => {
+        return iterate(account)
+      }).catch(() => {
+        return Promise.resolve()
+      })
+    }
+
     return FreeDist0xNIL.deployed().then(instance => {
       dist = instance
-      return Promise.all([
-        dist.reservedBalanceOf(accounts[6]),
-        dist.reservedBalanceOf(accounts[7]),
-        dist.reservedBalanceOf(accounts[8])
-      ])
-    }).then(([balance6, balance7, balance8]) => {
-      assert.equal(balance6.valueOf(), 1)
-      assert.equal(balance7.valueOf(), 3)
-      assert.equal(balance8.valueOf(), 2)
+      return iterate(accounts[18])
+    }).then(() => {
+      return dist.tokenBalanceOf(accounts[18])
+    }).then(balance18 => {
+      assert.equal(balance18.valueOf(), 100)
     })
 
   })
 
-  it('should change the endBlock', () => {
+  it('should change the duration', () => {
     let dist
+
     return FreeDist0xNIL.deployed().then(instance => {
       dist = instance
-      current = web3.eth.blockNumber
-      endBlock = current + 5
-      return dist.changeEndBlock(endBlock)
-    }).then(() => {
+      endBlock = web3.eth.blockNumber + 5
+      duration = endBlock - startBlock
+      return dist.changeDuration(duration)
+    }).then(result => {
+
+
       assert(true)
     })
   })
@@ -315,7 +250,7 @@ contract('FreeDist0xNIL', function (accounts) {
     let dist
 
     const iterate = () => {
-      // iterates until the transaction fails, i.e. endBlock < eth.blockNumber
+      // iterates until the transaction fails
       return dist.sendTransaction({from: accounts[0], value: 0}).then(() => {
         return iterate()
       }).catch(() => {
@@ -334,53 +269,6 @@ contract('FreeDist0xNIL', function (accounts) {
 
   })
 
-  it('should return 0 because the tokens have not been assigned yet', () => {
-    let dist
-    return FreeDist0xNIL.deployed().then(instance => {
-      dist = instance
-      return dist.tokenBalanceOf(accounts[2])
-    }).then(balance => {
-      assert.equal(balance.valueOf(), 0)
-    })
-  })
-
-  it('should distribute the tokens to the accounts', () => {
-    let dist
-    return FreeDist0xNIL.deployed().then(instance => {
-      dist = instance
-      return dist.sendTransaction({from: accounts[2], value: 0})
-    }).then(() => {
-      return dist.sendTransaction({from: accounts[3], value: 0})
-    }).then(() => {
-      return dist.sendTransaction({from: accounts[4], value: 0})
-    }).then(() => {
-
-      return Promise.all([
-        dist.tokenBalanceOf(accounts[2]),
-        dist.tokenBalanceOf(accounts[3]),
-        dist.tokenBalanceOf(accounts[4]),
-        dist.reservedBalanceOf(accounts[2])
-      ])
-    }).then(([balance2, balance3, balance4, balance2b]) => {
-      assert.equal(balance2.valueOf(), 2)
-      assert.equal(balance3.valueOf(), 3)
-      assert.equal(balance4.valueOf(), 3)
-      assert.equal(balance2b.valueOf(), 0)
-    })
-  })
-
-
-  it('should throw if trying to withdraw again', () => {
-    let dist
-    return FreeDist0xNIL.deployed().then(instance => {
-      dist = instance
-      return dist.sendTransaction({from: accounts[2], value: 0})
-    }).catch(() => {
-      assert(true);
-    })
-  })
-
-
   it('should hasEnded return true', () => {
     let dist
     return FreeDist0xNIL.deployed().then(instance => {
@@ -391,7 +279,32 @@ contract('FreeDist0xNIL', function (accounts) {
     })
   })
 
-  it('should throw if tokens are already distributed', () => {
+  it('should tip the artist', () => {
+    let dist
+    return FreeDist0xNIL.deployed().then(instance => {
+      dist = instance
+      return dist.giveTipToArtist()
+    }).then(() => {
+      return Promise.all([
+        dist.tokenBalanceOf(artist),
+        dist.tokenDistributed.call()
+      ])
+    }).then(([balance, tokenDistributed]) => {
+      assert.equal(balance, Math.floor(tokenDistributed.valueOf() / 7));
+    })
+  })
+
+  it('should throw if trying to tip the artist again', () => {
+    let dist
+    return FreeDist0xNIL.deployed().then(instance => {
+      dist = instance
+      return dist.giveTipToArtist()
+    }).catch(() => {
+      assert(true)
+    })
+  })
+
+  it('should throw if distribution has ended', () => {
     let dist
     return FreeDist0xNIL.deployed().then(instance => {
       dist = instance
@@ -401,13 +314,12 @@ contract('FreeDist0xNIL', function (accounts) {
     })
   })
 
-  it('should throw an error trying to call changeEndBlock after ended', () => {
+  it('should throw an error trying to change the duration after ended', () => {
     let dist
     return FreeDist0xNIL.deployed().then(instance => {
       dist = instance
-      current = web3.eth.blockNumber
-      endBlock = current + 10
-      return dist.changeEndBlock(endBlock)
+      duration = 300
+      return dist.changeDuration(duration)
     }).catch(err => {
       assert(true)
     })
@@ -419,8 +331,8 @@ contract('FreeDist0xNIL', function (accounts) {
       dist = instance
       current = web3.eth.blockNumber
       startBlock = current + 5
-      endBlock = current + 1000
-      return dist.start(startBlock, endBlock, artist)
+      duration = 200
+      return dist.startDistribution(startBlock, duration, artist)
     }).catch(err => {
       assert(true)
     })
