@@ -15,7 +15,7 @@ npm install -g testrpc truffle
 
 Run `testrpc` generating 20 accounts:
 ```
-testrpc -a 20
+testrpc -a 20 -g 20000000000 -l 0x47E7C4
 ```
 
 Run the tests:
