@@ -16,4 +16,8 @@ contract Token0xNIL is MintableToken {
     return totalSupply;
   }
 
+  function isMintingFinished() public constant returns(bool) {
+    return mintingFinished;
+  }
+
 }

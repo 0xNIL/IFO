@@ -16,8 +16,6 @@ contract FreeDist0xNIL is Ownable {
 
   event Minted(address to, uint amount);
 
-  event Log(uint what);
-
   Token0xNIL public token;
 
   uint public requests = 0;
@@ -30,20 +28,9 @@ contract FreeDist0xNIL is Ownable {
 
   uint public tokenDistributed;
 
-  uint public tokenMinted;
-
   uint public totalParticipants;
 
   address public artist;
-  uint public artistBalance;
-
-  uint8 public totalSupporters;
-
-  uint public totalSupportersRatios;
-
-  mapping (address => uint8) public supporters;
-
-  mapping (uint8 => address) public supporterAddress;
 
   function startDistribution(uint _startBlock, uint _duration, address _artist) onlyOwner payable {
     require(!isInitiated());
@@ -57,6 +44,11 @@ contract FreeDist0xNIL is Ownable {
     endBlock = _startBlock + _duration;
     artist = _artist;
     Initiated();
+  }
+
+  function getUint(uint a, uint b) constant returns (uint){
+    uint r = a / b;
+    return r;
   }
 
   function createTokenContract() internal returns (Token0xNIL) {
@@ -89,10 +81,6 @@ contract FreeDist0xNIL is Ownable {
     }
   }
 
-  function giveTokenToArtist() {
-
-  }
-
   event ChangeDuration(uint oldDuration, uint newDuration);
 
   function changeDuration(uint _duration) onlyOwner payable {
@@ -103,39 +91,18 @@ contract FreeDist0xNIL is Ownable {
     endBlock = startBlock + _duration;
   }
 
-  function addSupporter(address _supporter, uint8 _ratio) onlyOwner payable {
-    require(!isInitiated());
-    require(_ratio >= 0 && _ratio <= 3);
-    require(_supporter != 0x0);
+  function giveTipToArtist() onlyOwner payable {
+    require(hasEnded());
+    require(!token.isMintingFinished());
 
-    uint8 id;
-    uint8 previousRatio;
-    bool supporterExists = false;
-    for (uint8 i = 0; i < totalSupporters; i++) {
-      address supporter = supporterAddress[i];
-      if (supporter == _supporter) {
-        supporterExists = true;
-        id = i;
-        previousRatio = supporters[supporter];
-        break;
-      }
-    }
-    if (!supporterExists) {
-      id = totalSupporters++;
-      supporterAddress[id] = _supporter;
-    }
-    supporters[_supporter] = _ratio;
-    totalSupportersRatios += _ratio - previousRatio;
-  }
+    uint total = token.getTotalSupply();
+    uint artistBalance = tokenDistributed / 7;
+    token.mint(artist, artistBalance);
+    total += artistBalance;
 
-  function giveTokensToSupporters() internal constant returns(bool) {
-    for (uint8 i = 0; i < totalSupporters; i++) {
-      address supporter = supporterAddress[i];
-      token.mint(supporter, supporters[supporter]);
-      tokenMinted += supporters[supporter];
+    if (token.balanceOf(artist) == artistBalance) {
+      token.finishMinting();
     }
-    TokenToTeam();
-    return true;
   }
 
   function() payable {
@@ -159,15 +126,7 @@ contract FreeDist0xNIL is Ownable {
     token.mint(msg.sender, tokensPerBlockNumber);
     Minted(msg.sender, tokensPerBlockNumber);
 
-    token.mint(artist, 1);
-
     tokenDistributed += tokensPerBlockNumber;
-    tokenMinted += tokensPerBlockNumber + 1;
-
-
-    if (++requests % 10 == 0) {
-      giveTokensToSupporters();
-    }
   }
 
   function tokenBalanceOf(address who) public constant returns (uint){
