@@ -147,6 +147,21 @@ contract('FreeDist0xNIL', function (accounts) {
 
   })
 
+  it('should tip the artist', () => {
+    let dist
+    return FreeDist0xNIL.deployed().then(instance => {
+      dist = instance
+      return dist.giveTipToArtist()
+    }).then(() => {
+      return Promise.all([
+        dist.tokenBalanceOf(artist),
+        dist.tokenDistributed.call()
+      ])
+    }).then(([balance, tokenDistributed]) => {
+      assert.equal(balance.valueOf(), Math.floor(tokenDistributed.valueOf() / 7));
+    })
+  })
+
   it('should throw if sending more than 1 wei', () => {
     let dist
     return FreeDist0xNIL.deployed().then(instance => {
@@ -201,9 +216,9 @@ contract('FreeDist0xNIL', function (accounts) {
       assert.equal(balance14.valueOf(), 60)
       assert.equal(balance15.valueOf(), 60)
       assert.equal(balance16.valueOf(), 60)
-      assert.equal(balance17.valueOf(), 57)
+      assert.equal(balance17.valueOf(), 56)
       assert.equal(balance18.valueOf(), 54)
-      assert.equal(tokenDistributed.valueOf(), 671)
+      assert.equal(tokenDistributed.valueOf(), 670)
     })
 
   })
@@ -279,6 +294,16 @@ contract('FreeDist0xNIL', function (accounts) {
     })
   })
 
+  it('should verify minting has not finished', () => {
+    let dist
+    return FreeDist0xNIL.deployed().then(instance => {
+      dist = instance
+      return dist.isMintingFinished()
+    }).then(result => {
+      assert.equal(result.valueOf(), false);
+    })
+  })
+
   it('should tip the artist', () => {
     let dist
     return FreeDist0xNIL.deployed().then(instance => {
@@ -290,7 +315,17 @@ contract('FreeDist0xNIL', function (accounts) {
         dist.tokenDistributed.call()
       ])
     }).then(([balance, tokenDistributed]) => {
-      assert.equal(balance, Math.floor(tokenDistributed.valueOf() / 7));
+      assert.equal(balance.valueOf(), Math.floor(tokenDistributed.valueOf() / 7));
+    })
+  })
+
+  it('should verify minting has finished', () => {
+    let dist
+    return FreeDist0xNIL.deployed().then(instance => {
+      dist = instance
+      return dist.isMintingFinished()
+    }).then(result => {
+      assert.equal(result.valueOf(), true);
     })
   })
 

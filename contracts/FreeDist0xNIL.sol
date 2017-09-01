@@ -26,14 +26,30 @@ contract FreeDist0xNIL is Ownable {
 
   uint public endBlock;
 
+  uint public tipped;
+
   uint public tokenDistributed;
 
   uint public totalParticipants;
 
   address public artist;
 
-  function startDistribution(uint _startBlock, uint _duration, address _artist) onlyOwner payable {
+  modifier canInitiate() {
     require(!isInitiated());
+    _;
+  }
+
+  modifier canChange() {
+    require(isInitiated() && !hasEnded());
+    _;
+  }
+
+  modifier canPay() {
+    require(isActive());
+    _;
+  }
+
+  function startDistribution(uint _startBlock, uint _duration, address _artist) onlyOwner canInitiate payable {
     require(_startBlock >= block.number);
     require(_artist != 0x0);
     require(_duration > 0);
@@ -44,11 +60,6 @@ contract FreeDist0xNIL is Ownable {
     endBlock = _startBlock + _duration;
     artist = _artist;
     Initiated();
-  }
-
-  function getUint(uint a, uint b) constant returns (uint){
-    uint r = a / b;
-    return r;
   }
 
   function createTokenContract() internal returns (Token0xNIL) {
@@ -83,30 +94,27 @@ contract FreeDist0xNIL is Ownable {
 
   event ChangeDuration(uint oldDuration, uint newDuration);
 
-  function changeDuration(uint _duration) onlyOwner payable {
-    require(isInitiated() && !hasEnded());
-    ChangeDuration(startBlock + _duration, block.number);
-
+  function changeDuration(uint _duration) onlyOwner canChange payable {
     require(startBlock + _duration > block.number);
     endBlock = startBlock + _duration;
+    ChangeDuration(startBlock + _duration, block.number);
   }
 
   function giveTipToArtist() onlyOwner payable {
-    require(hasEnded());
     require(!token.isMintingFinished());
 
-    uint total = token.getTotalSupply();
-    uint artistBalance = tokenDistributed / 7;
-    token.mint(artist, artistBalance);
-    total += artistBalance;
+    uint amount = (tokenDistributed / 7) - tipped;
+    if (amount > 0) {
+      token.mint(artist, amount);
+      tipped += amount;
+    }
 
-    if (token.balanceOf(artist) == artistBalance) {
+    if (hasEnded()) {
       token.finishMinting();
     }
   }
 
-  function() payable {
-    require(isActive());
+  function() canPay payable {
     require(msg.sender != 0x0);
     require(msg.value <= 1);
 
@@ -147,6 +155,10 @@ contract FreeDist0xNIL is Ownable {
 
   function isInitiated() public constant returns (bool) {
     return startBlock > 0;
+  }
+
+  function isMintingFinished() public constant returns (bool) {
+    return token.isMintingFinished();
   }
 
 }
