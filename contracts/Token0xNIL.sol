@@ -10,7 +10,7 @@ contract Token0xNIL is MintableToken {
 
   string public symbol = "NIL";
 
-  uint public decimals = 0;
+  uint public decimals = 9;
 
   function getTotalSupply() public constant returns(uint) {
     return totalSupply;
