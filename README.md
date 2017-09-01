@@ -27,6 +27,3 @@ Run the tests:
 truffle test
 
 ```
-The results should look like this:
-
-![test-results](https://raw.githubusercontent.com/0xNIL/initial-free-distribution/master/sampleTestResults.png)
