@@ -6,12 +6,15 @@ More info at [0xNIL.org](http://0xNIL.org)
 
 ### Testing
 
-Install dependencies, and `testrpc` and `truffle`:
+Install `testrpc` and `truffle`:
 
 ```
-npm install
 npm install -g testrpc truffle
+```
 
+Install the dependencies
+```
+npm install
 ```
 
 Run `testrpc` generating 20 accounts:
