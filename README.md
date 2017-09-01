@@ -6,9 +6,10 @@ More info at [0xNIL.org](http://0xNIL.org)
 
 ### Testing
 
-Install `testrpc` and `truffle`:
+Install dependencies, and `testrpc` and `truffle`:
 
 ```
+npm install
 npm install -g testrpc truffle
 
 ```
