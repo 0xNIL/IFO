@@ -18,6 +18,8 @@ contract FreeDist0xNIL is Ownable {
 
   Token0xNIL public token;
 
+  uint public RATIO = 100;
+
   uint public requests = 0;
 
   uint public initialDuration;
@@ -73,22 +75,15 @@ contract FreeDist0xNIL is Ownable {
     }
     else {
       uint step = current - startBlock;
-      uint ratio = initialDuration / 5;
+      uint ratio = initialDuration / 3;
+      uint tokens = RATIO;
       if (step < ratio) {
-        return 10;
+        tokens += RATIO * 40 / 100;
       }
       else if (step < 2 * ratio) {
-        return 9;
+        tokens += RATIO * 20 / 100;
       }
-      else if (step < 3 * ratio) {
-        return 8;
-      }
-      else if (step < 4 * ratio) {
-        return 7;
-      }
-      else {
-        return 8;
-      }
+      return tokens;
     }
   }
 
@@ -100,12 +95,16 @@ contract FreeDist0xNIL is Ownable {
     ChangeDuration(startBlock + _duration, block.number);
   }
 
+  function toGwei(uint amount) internal constant returns (uint) {
+    return amount * 1000000000;
+  }
+
   function giveTipToArtist() onlyOwner payable {
     require(!token.isMintingFinished());
 
     uint amount = (tokenDistributed / 7) - tipped;
     if (amount > 0) {
-      token.mint(artist, amount);
+      token.mint(artist, toGwei(amount));
       tipped += amount;
     }
 
@@ -123,15 +122,17 @@ contract FreeDist0xNIL is Ownable {
       totalParticipants++;
     }
 
-    require(balance < 100);
+    uint limit = toGwei(1000);
+
+    require(balance < limit);
 
     uint tokensPerBlockNumber = getTokensPerBlockNumber();
 
-    if (balance > 0 && balance + tokensPerBlockNumber > 100) {
-      tokensPerBlockNumber = 100 - balance;
+    if (balance > 0 && balance + tokensPerBlockNumber > limit) {
+      tokensPerBlockNumber = limit - balance;
     }
 
-    token.mint(msg.sender, tokensPerBlockNumber);
+    token.mint(msg.sender, toGwei(tokensPerBlockNumber));
     Minted(msg.sender, tokensPerBlockNumber);
 
     tokenDistributed += tokensPerBlockNumber;

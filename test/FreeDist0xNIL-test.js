@@ -2,6 +2,10 @@
 
 const FreeDist0xNIL = artifacts.require('./FreeDist0xNIL.sol')
 
+function toGwei(amount) {
+  return amount * 1e9
+}
+
 contract('FreeDist0xNIL', function (accounts) {
 
   let current
@@ -46,7 +50,7 @@ contract('FreeDist0xNIL', function (accounts) {
       dist = instance
       current = web3.eth.blockNumber
       startBlock = current + 10
-      duration = 300
+      duration = 110
       endBlock = startBlock + duration
       return dist.startDistribution(startBlock, duration, artist)
     }).then(() => {
@@ -103,10 +107,10 @@ contract('FreeDist0xNIL', function (accounts) {
         dist.tokenBalanceOf(artist)
       ])
     }).then(([tokenDistributed, totalParticipants, totalSupply, balance, aBalance]) => {
-      assert.equal(tokenDistributed.valueOf(), 20)
+      assert.equal(tokenDistributed.valueOf(), 280)
       assert.equal(totalParticipants.valueOf(), 2)
-      assert.equal(totalSupply.valueOf(), 20)
-      assert.equal(balance.valueOf(), 10)
+      assert.equal(totalSupply.valueOf(), 280 * 1e9)
+      assert.equal(balance.valueOf(), toGwei(140))
       assert.equal(aBalance.valueOf(), 0)
     })
 
@@ -138,11 +142,11 @@ contract('FreeDist0xNIL', function (accounts) {
       ])
     }).then(([balance1, balance2, balance3, balance4, participants, distributed]) => {
       assert.equal(balance1.valueOf(), 0)
-      assert.equal(balance2.valueOf(), 20)
-      assert.equal(balance3.valueOf(), 30)
-      assert.equal(balance4.valueOf(), 40)
+      assert.equal(balance2.valueOf(), toGwei(280))
+      assert.equal(balance3.valueOf(), toGwei(420))
+      assert.equal(balance4.valueOf(), toGwei(560))
       assert.equal(participants.valueOf(), 4)
-      assert.equal(distributed.valueOf(), 100)
+      assert.equal(distributed.valueOf(), 1400)
     })
 
   })
@@ -158,7 +162,7 @@ contract('FreeDist0xNIL', function (accounts) {
         dist.tokenDistributed.call()
       ])
     }).then(([balance, tokenDistributed]) => {
-      assert.equal(balance.valueOf(), Math.floor(tokenDistributed.valueOf() / 7));
+      assert.equal(balance.valueOf(), toGwei(Math.floor(tokenDistributed.valueOf() / 7)))
     })
   })
 
@@ -168,11 +172,11 @@ contract('FreeDist0xNIL', function (accounts) {
       dist = instance
       return dist.sendTransaction({from: accounts[2], value: 10})
     }).catch(() => {
-      assert(true);
+      assert(true)
     })
   })
 
-  it('should assign ~60 tokens each to accounts from 11 to 18', () => {
+  it('should assign < 100 tokens each to accounts from 10 to 19', () => {
     let dist
 
     const iterate = (account, counter) => {
@@ -183,21 +187,27 @@ contract('FreeDist0xNIL', function (accounts) {
           return Promise.resolve(true)
         }
       })
+          .catch(err => {
+            console.log(account, counter)
+            console.log(err.stack)
+          })
     }
 
     return FreeDist0xNIL.deployed().then(instance => {
       dist = instance
-      return iterate(accounts[10], 10)
-          .then(() => iterate(accounts[11], 6))
-          .then(() => iterate(accounts[12], 6))
-          .then(() => iterate(accounts[13], 6))
-          .then(() => iterate(accounts[14], 6))
-          .then(() => iterate(accounts[15], 6))
-          .then(() => iterate(accounts[16], 6))
-          .then(() => iterate(accounts[17], 6))
-          .then(() => iterate(accounts[18], 6))
+      return iterate(accounts[10], 7)
+          .then(() => iterate(accounts[11], 7))
+          .then(() => iterate(accounts[12], 7))
+          .then(() => iterate(accounts[13], 7))
+          .then(() => iterate(accounts[14], 8))
+          .then(() => iterate(accounts[15], 8))
+          .then(() => iterate(accounts[16], 8))
+          .then(() => iterate(accounts[17], 8))
+          .then(() => iterate(accounts[18], 9))
+          .then(() => iterate(accounts[19], 9))
     }).then(() => {
       return Promise.all([
+        dist.tokenBalanceOf(accounts[10]),
         dist.tokenBalanceOf(accounts[11]),
         dist.tokenBalanceOf(accounts[12]),
         dist.tokenBalanceOf(accounts[13]),
@@ -206,19 +216,21 @@ contract('FreeDist0xNIL', function (accounts) {
         dist.tokenBalanceOf(accounts[16]),
         dist.tokenBalanceOf(accounts[17]),
         dist.tokenBalanceOf(accounts[18]),
+        dist.tokenBalanceOf(accounts[19]),
         dist.tokenDistributed.call()
       ])
-    }).then(([balance11, balance12, balance13, balance14, balance15, balance16, balance17, balance18, tokenDistributed]) => {
-
-      assert.equal(balance11.valueOf(), 60)
-      assert.equal(balance12.valueOf(), 60)
-      assert.equal(balance13.valueOf(), 60)
-      assert.equal(balance14.valueOf(), 60)
-      assert.equal(balance15.valueOf(), 60)
-      assert.equal(balance16.valueOf(), 60)
-      assert.equal(balance17.valueOf(), 56)
-      assert.equal(balance18.valueOf(), 54)
-      assert.equal(tokenDistributed.valueOf(), 670)
+    }).then(([balance10, balance11, balance12, balance13, balance14, balance15, balance16, balance17, balance18, balance19, tokenDistributed]) => {
+      assert.equal(balance10.valueOf(), toGwei(980))
+      assert.equal(balance11.valueOf(), toGwei(980))
+      assert.equal(balance12.valueOf(), toGwei(980))
+      assert.equal(balance13.valueOf(), toGwei(900))
+      assert.equal(balance14.valueOf(), toGwei(960))
+      assert.equal(balance15.valueOf(), toGwei(960))
+      assert.equal(balance16.valueOf(), toGwei(960))
+      assert.equal(balance17.valueOf(), toGwei(960))
+      assert.equal(balance18.valueOf(), toGwei(900))
+      assert.equal(balance19.valueOf(), toGwei(900))
+      assert.equal(tokenDistributed.valueOf(), 10880)
     })
 
   })
@@ -236,13 +248,12 @@ contract('FreeDist0xNIL', function (accounts) {
 
     return FreeDist0xNIL.deployed().then(instance => {
       dist = instance
-      return iterate(accounts[18])
+      return iterate(accounts[2])
     }).then(() => {
-      return dist.tokenBalanceOf(accounts[18])
-    }).then(balance18 => {
-      assert.equal(balance18.valueOf(), 100)
+      return dist.tokenBalanceOf(accounts[2])
+    }).then(balance2 => {
+      assert.equal(balance2.valueOf(), toGwei(1080))
     })
-
   })
 
   it('should change the duration', () => {
@@ -253,9 +264,7 @@ contract('FreeDist0xNIL', function (accounts) {
       endBlock = web3.eth.blockNumber + 5
       duration = endBlock - startBlock
       return dist.changeDuration(duration)
-    }).then(result => {
-
-
+    }).then(() => {
       assert(true)
     })
   })
@@ -300,7 +309,7 @@ contract('FreeDist0xNIL', function (accounts) {
       dist = instance
       return dist.isMintingFinished()
     }).then(result => {
-      assert.equal(result.valueOf(), false);
+      assert.equal(result.valueOf(), false)
     })
   })
 
@@ -315,7 +324,8 @@ contract('FreeDist0xNIL', function (accounts) {
         dist.tokenDistributed.call()
       ])
     }).then(([balance, tokenDistributed]) => {
-      assert.equal(balance.valueOf(), Math.floor(tokenDistributed.valueOf() / 7));
+      assert.equal(tokenDistributed.valueOf(), 12080)
+      assert.equal(balance.valueOf(), toGwei(1725))
     })
   })
 
@@ -325,7 +335,7 @@ contract('FreeDist0xNIL', function (accounts) {
       dist = instance
       return dist.isMintingFinished()
     }).then(result => {
-      assert.equal(result.valueOf(), true);
+      assert.equal(result.valueOf(), true)
     })
   })
 
