@@ -162,7 +162,7 @@ contract('FreeDist0xNIL', function (accounts) {
         dist.tokenDistributed.call()
       ])
     }).then(([balance, tokenDistributed]) => {
-      assert.equal(balance.valueOf(), toGwei(Math.floor(tokenDistributed.valueOf() / 7)))
+      assert.equal(balance.valueOf(), toGwei(Math.floor(tokenDistributed.valueOf() / 5)))
     })
   })
 
@@ -325,7 +325,7 @@ contract('FreeDist0xNIL', function (accounts) {
       ])
     }).then(([balance, tokenDistributed]) => {
       assert.equal(tokenDistributed.valueOf(), 12080)
-      assert.equal(balance.valueOf(), toGwei(1725))
+      assert.equal(balance.valueOf(), toGwei(2416))
     })
   })
 

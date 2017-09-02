@@ -102,7 +102,7 @@ contract FreeDist0xNIL is Ownable {
   function giveTipToArtist() onlyOwner payable {
     require(!token.isMintingFinished());
 
-    uint amount = (tokenDistributed / 7) - tipped;
+    uint amount = (tokenDistributed / 5) - tipped;
     if (amount > 0) {
       token.mint(artist, toGwei(amount));
       tipped += amount;
