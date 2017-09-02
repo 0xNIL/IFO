@@ -107,10 +107,10 @@ contract('FreeDist0xNIL', function (accounts) {
         dist.tokenBalanceOf(artist)
       ])
     }).then(([tokenDistributed, totalParticipants, totalSupply, balance, aBalance]) => {
-      assert.equal(tokenDistributed.valueOf(), 28)
+      assert.equal(tokenDistributed.valueOf(), 280)
       assert.equal(totalParticipants.valueOf(), 2)
-      assert.equal(totalSupply.valueOf(), 28 * 1e9)
-      assert.equal(balance.valueOf(), toGwei(14))
+      assert.equal(totalSupply.valueOf(), 280 * 1e9)
+      assert.equal(balance.valueOf(), toGwei(140))
       assert.equal(aBalance.valueOf(), 0)
     })
 
@@ -142,11 +142,11 @@ contract('FreeDist0xNIL', function (accounts) {
       ])
     }).then(([balance1, balance2, balance3, balance4, participants, distributed]) => {
       assert.equal(balance1.valueOf(), 0)
-      assert.equal(balance2.valueOf(), toGwei(28))
-      assert.equal(balance3.valueOf(), toGwei(42))
-      assert.equal(balance4.valueOf(), toGwei(56))
+      assert.equal(balance2.valueOf(), toGwei(280))
+      assert.equal(balance3.valueOf(), toGwei(420))
+      assert.equal(balance4.valueOf(), toGwei(560))
       assert.equal(participants.valueOf(), 4)
-      assert.equal(distributed.valueOf(), 140)
+      assert.equal(distributed.valueOf(), 1400)
     })
 
   })
@@ -220,17 +220,17 @@ contract('FreeDist0xNIL', function (accounts) {
         dist.tokenDistributed.call()
       ])
     }).then(([balance10, balance11, balance12, balance13, balance14, balance15, balance16, balance17, balance18, balance19, tokenDistributed]) => {
-      assert.equal(balance10.valueOf(), toGwei(98))
-      assert.equal(balance11.valueOf(), toGwei(98))
-      assert.equal(balance12.valueOf(), toGwei(98))
-      assert.equal(balance13.valueOf(), toGwei(90))
-      assert.equal(balance14.valueOf(), toGwei(96))
-      assert.equal(balance15.valueOf(), toGwei(96))
-      assert.equal(balance16.valueOf(), toGwei(96))
-      assert.equal(balance17.valueOf(), toGwei(96))
-      assert.equal(balance18.valueOf(), toGwei(90))
-      assert.equal(balance19.valueOf(), toGwei(90))
-      assert.equal(tokenDistributed.valueOf(), 1088)
+      assert.equal(balance10.valueOf(), toGwei(980))
+      assert.equal(balance11.valueOf(), toGwei(980))
+      assert.equal(balance12.valueOf(), toGwei(980))
+      assert.equal(balance13.valueOf(), toGwei(900))
+      assert.equal(balance14.valueOf(), toGwei(960))
+      assert.equal(balance15.valueOf(), toGwei(960))
+      assert.equal(balance16.valueOf(), toGwei(960))
+      assert.equal(balance17.valueOf(), toGwei(960))
+      assert.equal(balance18.valueOf(), toGwei(900))
+      assert.equal(balance19.valueOf(), toGwei(900))
+      assert.equal(tokenDistributed.valueOf(), 10880)
     })
 
   })
@@ -252,7 +252,7 @@ contract('FreeDist0xNIL', function (accounts) {
     }).then(() => {
       return dist.tokenBalanceOf(accounts[2])
     }).then(balance2 => {
-      assert.equal(balance2.valueOf(), toGwei(108))
+      assert.equal(balance2.valueOf(), toGwei(1080))
     })
   })
 
@@ -324,8 +324,8 @@ contract('FreeDist0xNIL', function (accounts) {
         dist.tokenDistributed.call()
       ])
     }).then(([balance, tokenDistributed]) => {
-      assert.equal(tokenDistributed.valueOf(), 1208)
-      assert.equal(balance.valueOf(), toGwei(172))
+      assert.equal(tokenDistributed.valueOf(), 12080)
+      assert.equal(balance.valueOf(), toGwei(1725))
     })
   })
 

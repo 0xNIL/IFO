@@ -18,7 +18,7 @@ contract FreeDist0xNIL is Ownable {
 
   Token0xNIL public token;
 
-  uint public RATIO = 10;
+  uint public RATIO = 100;
 
   uint public requests = 0;
 
@@ -122,7 +122,7 @@ contract FreeDist0xNIL is Ownable {
       totalParticipants++;
     }
 
-    uint limit = toGwei(100);
+    uint limit = toGwei(1000);
 
     require(balance < limit);
 
