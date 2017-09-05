@@ -18,7 +18,11 @@ contract FreeDist0xNIL is Ownable {
 
   Token0xNIL public token;
 
-  uint public RATIO = 100;
+  uint public RATIO = 1000;
+
+  uint public MAX = 10000;
+
+uint public FACTOR = 1000000000;
 
   uint public requests = 0;
 
@@ -96,7 +100,7 @@ contract FreeDist0xNIL is Ownable {
   }
 
   function toGwei(uint amount) internal constant returns (uint) {
-    return amount * 1000000000;
+    return amount * FACTOR;
   }
 
   function giveTipToArtist() onlyOwner payable {
@@ -122,14 +126,14 @@ contract FreeDist0xNIL is Ownable {
       totalParticipants++;
     }
 
-    uint limit = toGwei(1000);
+    uint limit = toGwei(MAX);
 
     require(balance < limit);
 
     uint tokensPerBlockNumber = getTokensPerBlockNumber();
 
-    if (balance > 0 && balance + tokensPerBlockNumber > limit) {
-      tokensPerBlockNumber = limit - balance;
+    if (balance > 0 && (balance / FACTOR) + tokensPerBlockNumber > MAX) {
+      tokensPerBlockNumber = MAX - (balance / FACTOR);
     }
 
     token.mint(msg.sender, toGwei(tokensPerBlockNumber));
