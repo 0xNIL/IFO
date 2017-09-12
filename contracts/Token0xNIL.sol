@@ -12,16 +12,4 @@ contract Token0xNIL is MintableToken {
 
   uint public decimals = 9;
 
-  function getTotalSupply() public constant returns(uint) {
-    return totalSupply;
-  }
-
-  function isMintingFinished() public constant returns(bool) {
-    return mintingFinished;
-  }
-
-  function getDecimals() public constant returns(uint) {
-    return decimals;
-  }
-
 }

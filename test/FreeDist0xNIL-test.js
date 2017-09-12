@@ -174,7 +174,7 @@ contract('FreeDist0xNIL', function (accounts) {
 
   })
 
-  it('should assign tokens to accounts 2, 3 and 4 and verify that all the values are consistent', () => {
+  it('should assign tokens to accounts 2 and 3 and verify that all the values are consistent', () => {
 
     let dist
     return FreeDist0xNIL.deployed().then(instance => {
@@ -183,31 +183,48 @@ contract('FreeDist0xNIL', function (accounts) {
         dist.sendTransaction({from: accounts[2], value: 1}),
         dist.sendTransaction({from: accounts[3], value: 0}),
         dist.sendTransaction({from: accounts[3], value: 0}),
-        dist.sendTransaction({from: accounts[3], value: 1}),
-        dist.sendTransaction({from: accounts[4], value: 0}),
-        dist.sendTransaction({from: accounts[4], value: 0}),
-        dist.sendTransaction({from: accounts[4], value: 0}),
-        dist.sendTransaction({from: accounts[4], value: 0})
+        dist.sendTransaction({from: accounts[3], value: 1})
       ])
     }).then(() => {
       return Promise.all([
         dist.tokenBalanceOf(artist),
         dist.tokenBalanceOf(accounts[2]),
         dist.tokenBalanceOf(accounts[3]),
-        dist.tokenBalanceOf(accounts[4]),
         dist.totalParticipants.call(),
         dist.tokenDistributed.call()
       ])
-    }).then(([balance1, balance2, balance3, balance4, participants, distributed]) => {
+    }).then(([balance1, balance2, balance3, participants, distributed]) => {
       assert.equal(balance1.valueOf(), 0)
       assert.equal(balance2.valueOf(), toGwei(2800))
       assert.equal(balance3.valueOf(), toGwei(4200))
-      assert.equal(balance4.valueOf(), toGwei(5600))
-      assert.equal(participants.valueOf(), 4)
-      assert.equal(distributed.valueOf(), 14000)
+      assert.equal(participants.valueOf(), 3)
+      assert.equal(distributed.valueOf(), 8400)
     })
 
   })
+
+
+  it('should assign tokens to account 4 using requireToken and verify that all the values are consistent', () => {
+
+    let dist
+    return FreeDist0xNIL.deployed().then(instance => {
+      dist = instance
+      return Promise.all([
+        dist.sendTransaction({from: accounts[4], value: 0, data: '0x7a0c39'}),
+        dist.sendTransaction({from: accounts[4], value: 0, data: '0x7a0c39'}),
+        dist.sendTransaction({from: accounts[4], value: 0, data: '0x7a0c39'}),
+        dist.sendTransaction({from: accounts[4], value: 0, data: '0x7a0c39'})
+      ])
+    }).then(() => {
+      return Promise.all([
+        dist.tokenBalanceOf(accounts[4])
+      ])
+    }).then(([balance4]) => {
+      assert.equal(balance4.valueOf(), toGwei(5600))
+    })
+
+  })
+
 
   it('should throw if sending more than 1 wei', () => {
     let dist

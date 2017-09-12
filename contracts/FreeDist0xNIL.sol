@@ -77,11 +77,11 @@ contract FreeDist0xNIL is Ownable {
     require(_artist != 0x0);
     require(_duration > 0);
 
+    artist = _artist;
     token = createTokenContract();
     initialDuration = _duration;
     startBlock = _startBlock;
     endBlock = _startBlock + _duration;
-    artist = _artist;
     Initiated();
   }
 
@@ -143,7 +143,7 @@ contract FreeDist0xNIL is Ownable {
   }
 
   function toGwei(uint amount) internal constant returns (uint) {
-    return amount * 10 ** token.getDecimals();
+    return amount * 10 ** token.decimals();
   }
 
   function tipTheArtist() onlyOwner canTip payable {
@@ -161,6 +161,15 @@ contract FreeDist0xNIL is Ownable {
   }
 
   function() canPay payable {
+    getTokens();
+  }
+
+  // 0x7a0c39
+  function giveMeNILs() canPay payable {
+    getTokens();
+  }
+
+  function getTokens() internal constant returns (bool) {
     require(msg.sender != 0x0);
     require(msg.value <= 1);
 
@@ -175,7 +184,7 @@ contract FreeDist0xNIL is Ownable {
 
     uint tokensPerBlockNumber = getTokensPerBlockNumber();
 
-    uint factor = 10 ** token.getDecimals();
+    uint factor = 10 ** token.decimals();
     if (balance > 0 && (balance / factor) + tokensPerBlockNumber > MAX) {
       tokensPerBlockNumber = MAX - (balance / factor);
     }
@@ -184,6 +193,7 @@ contract FreeDist0xNIL is Ownable {
     Minted(msg.sender, tokensPerBlockNumber);
 
     tokenDistributed += tokensPerBlockNumber;
+    return true;
   }
 
   function tokenBalanceOf(address who) public constant returns (uint){
@@ -191,7 +201,7 @@ contract FreeDist0xNIL is Ownable {
   }
 
   function totalSupply() public constant returns (uint){
-    return token.getTotalSupply();
+    return token.totalSupply();
   }
 
   function hasEnded() public constant returns (bool) {
@@ -207,7 +217,7 @@ contract FreeDist0xNIL is Ownable {
   }
 
   function isMintingFinished() public constant returns (bool) {
-    return token.isMintingFinished();
+    return token.mintingFinished();
   }
 
 }
