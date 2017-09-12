@@ -22,8 +22,6 @@ contract FreeDist0xNIL is Ownable {
 
   uint public MAX = 10000;
 
-uint public FACTOR = 1000000000;
-
   uint public requests = 0;
 
   uint public initialDuration;
@@ -32,13 +30,27 @@ uint public FACTOR = 1000000000;
 
   uint public endBlock;
 
-  uint public tipped;
-
   uint public tokenDistributed;
 
   uint public totalParticipants;
 
   address public artist;
+
+  uint public tipPercentage = 20;
+
+  // supporters
+
+  uint8 public totalSupporters;
+
+  uint public totalSupportersRatios;
+
+  event TokenToSupporters();
+
+  mapping (address => uint8) public supporters;
+
+  mapping (uint8 => address) public supporterAddress;
+
+  // modifiers
 
   modifier canInitiate() {
     require(!isInitiated());
@@ -47,6 +59,11 @@ uint public FACTOR = 1000000000;
 
   modifier canChange() {
     require(isInitiated() && !hasEnded());
+    _;
+  }
+
+  modifier canTip() {
+    require(hasEnded() && !isMintingFinished());
     _;
   }
 
@@ -91,6 +108,32 @@ uint public FACTOR = 1000000000;
     }
   }
 
+  function addSupporter(address _supporter, uint8 _ratio) onlyOwner payable {
+    require(!isInitiated());
+    require(_ratio >= 0 && _ratio <= 5);
+    require(_supporter != 0x0);
+
+    uint8 id;
+    uint8 previousRatio;
+    bool supporterExists = false;
+    for (uint8 i = 0; i < totalSupporters; i++) {
+      address supporter = supporterAddress[i];
+      if (supporter == _supporter) {
+        supporterExists = true;
+        id = i;
+        previousRatio = supporters[supporter];
+        break;
+      }
+    }
+    if (!supporterExists) {
+      id = totalSupporters++;
+      supporterAddress[id] = _supporter;
+    }
+    supporters[_supporter] = _ratio;
+    totalSupportersRatios += _ratio - previousRatio;
+  }
+
+
   event ChangeDuration(uint oldDuration, uint newDuration);
 
   function changeDuration(uint _duration) onlyOwner canChange payable {
@@ -100,19 +143,19 @@ uint public FACTOR = 1000000000;
   }
 
   function toGwei(uint amount) internal constant returns (uint) {
-    return amount * FACTOR;
+    return amount * 10 ** token.getDecimals();
   }
 
-  function giveTipToArtist() onlyOwner payable {
-    require(!token.isMintingFinished());
+  function tipTheArtist() onlyOwner canTip payable {
 
-    uint amount = (tokenDistributed / 5) - tipped;
+    uint amount = tokenDistributed * tipPercentage / 100;
     if (amount > 0) {
       token.mint(artist, toGwei(amount));
-      tipped += amount;
-    }
-
-    if (hasEnded()) {
+      for (uint8 i = 0; i < totalSupporters; i++) {
+        address supporter = supporterAddress[i];
+        amount = tokenDistributed * supporters[supporter] / 100;
+        token.mint(supporter, toGwei(amount));
+      }
       token.finishMinting();
     }
   }
@@ -132,8 +175,9 @@ uint public FACTOR = 1000000000;
 
     uint tokensPerBlockNumber = getTokensPerBlockNumber();
 
-    if (balance > 0 && (balance / FACTOR) + tokensPerBlockNumber > MAX) {
-      tokensPerBlockNumber = MAX - (balance / FACTOR);
+    uint factor = 10 ** token.getDecimals();
+    if (balance > 0 && (balance / factor) + tokensPerBlockNumber > MAX) {
+      tokensPerBlockNumber = MAX - (balance / factor);
     }
 
     token.mint(msg.sender, toGwei(tokensPerBlockNumber));

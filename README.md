@@ -19,7 +19,7 @@ npm install
 
 Run `testrpc` generating 20 accounts:
 ```
-testrpc -a 20 -g 20000000000 -l 0x47E7C4
+testrpc -a 20
 ```
 
 Run the tests:

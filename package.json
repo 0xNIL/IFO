@@ -5,5 +5,9 @@
   "devDependencies": {},
   "dependencies": {
     "zeppelin-solidity": "^1.2.0"
+  },
+  "scripts": {
+    "runTestrpc": "testrpc -a 20 -g 20000000000 -l 0x47E7C4"
   }
+
 }

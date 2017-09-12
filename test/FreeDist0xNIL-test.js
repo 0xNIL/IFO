@@ -44,6 +44,54 @@ contract('FreeDist0xNIL', function (accounts) {
     })
   })
 
+  it('should add two supporters: accounts[6] and accounts[7]', () => {
+    let dist
+    return FreeDist0xNIL.deployed().then(instance => {
+      dist = instance
+      return dist.addSupporter(accounts[6], 1)
+    }).then(result => {
+      return dist.addSupporter(accounts[7], 2)
+    }).then(result => {
+      return Promise.all([
+        dist.supporterAddress.call(0),
+        dist.supporterAddress.call(1),
+        dist.supporters.call(accounts[6]),
+        dist.supporters.call(accounts[7]),
+        dist.totalSupporters.call(),
+        dist.totalSupportersRatios.call()
+      ])
+    }).then(([supporter0, supporter1, ratio0, ratio1, totalSupporters, totalSupportersRatios]) => {
+      assert.equal(supporter0.valueOf(), accounts[6])
+      assert.equal(supporter1.valueOf(), accounts[7])
+      assert.equal(ratio0.valueOf(), 1)
+      assert.equal(ratio1.valueOf(), 2)
+      assert.equal(totalSupporters.valueOf(), 2)
+      assert.equal(totalSupportersRatios.valueOf(), 3)
+    })
+  })
+
+  it('should add a new supporters accounts[8] and change accounts[7] ratio', () => {
+    let dist
+    return FreeDist0xNIL.deployed().then(instance => {
+      dist = instance
+      return dist.addSupporter(accounts[7], 3)
+    }).then(result => {
+      return dist.addSupporter(accounts[8], 2)
+    }).then(result => {
+      return Promise.all([
+        dist.supporterAddress.call(1),
+        dist.supporterAddress.call(2),
+        dist.supporters.call(accounts[7]),
+        dist.supporters.call(accounts[8])
+      ])
+    }).then(([supporter1, supporter2, ratio1, ratio2]) => {
+      assert.equal(supporter1.valueOf(), accounts[7])
+      assert.equal(supporter2.valueOf(), accounts[8])
+      assert.equal(ratio1.valueOf(), 3)
+      assert.equal(ratio2.valueOf(), 2)
+    })
+  })
+
   it('should initiate the distribution', () => {
     let dist
     return FreeDist0xNIL.deployed().then(instance => {
@@ -63,6 +111,16 @@ contract('FreeDist0xNIL', function (accounts) {
       assert.equal(_endBlock, endBlock)
     }).catch(err => {
       console.error('err', err)
+    })
+  })
+
+  it('should throw adding a new supporter accounts[9]', () => {
+    let dist
+    return FreeDist0xNIL.deployed().then(instance => {
+      dist = instance
+      return dist.addSupporter(accounts[9], 1)
+    }).catch(() => {
+      assert(true)
     })
   })
 
@@ -151,21 +209,6 @@ contract('FreeDist0xNIL', function (accounts) {
 
   })
 
-  it('should tip the artist', () => {
-    let dist
-    return FreeDist0xNIL.deployed().then(instance => {
-      dist = instance
-      return dist.giveTipToArtist()
-    }).then(() => {
-      return Promise.all([
-        dist.tokenBalanceOf(artist),
-        dist.tokenDistributed.call()
-      ])
-    }).then(([balance, tokenDistributed]) => {
-      assert.equal(balance.valueOf(), toGwei(Math.floor(tokenDistributed.valueOf() / 5)))
-    })
-  })
-
   it('should throw if sending more than 1 wei', () => {
     let dist
     return FreeDist0xNIL.deployed().then(instance => {
@@ -223,14 +266,14 @@ contract('FreeDist0xNIL', function (accounts) {
       assert.equal(balance10.valueOf(), toGwei(9800))
       assert.equal(balance11.valueOf(), toGwei(9800))
       assert.equal(balance12.valueOf(), toGwei(9800))
-      assert.equal(balance13.valueOf(), toGwei(9000))
+      assert.equal(balance13.valueOf(), toGwei(9200))
       assert.equal(balance14.valueOf(), toGwei(9600))
       assert.equal(balance15.valueOf(), toGwei(9600))
       assert.equal(balance16.valueOf(), toGwei(9600))
       assert.equal(balance17.valueOf(), toGwei(9600))
-      assert.equal(balance18.valueOf(), toGwei(9000))
+      assert.equal(balance18.valueOf(), toGwei(9200))
       assert.equal(balance19.valueOf(), toGwei(9000))
-      assert.equal(tokenDistributed.valueOf(), 108800)
+      assert.equal(tokenDistributed.valueOf(), 109200)
     })
 
   })
@@ -313,19 +356,25 @@ contract('FreeDist0xNIL', function (accounts) {
     })
   })
 
-  it('should tip the artist', () => {
+  it('should tip the artist and the supporters', () => {
     let dist
     return FreeDist0xNIL.deployed().then(instance => {
       dist = instance
-      return dist.giveTipToArtist()
+      return dist.tipTheArtist()
     }).then(() => {
       return Promise.all([
         dist.tokenBalanceOf(artist),
-        dist.tokenDistributed.call()
+        dist.tokenDistributed.call(),
+        dist.tokenBalanceOf(accounts[6]),
+        dist.tokenBalanceOf(accounts[7]),
+        dist.tokenBalanceOf(accounts[8])
       ])
-    }).then(([balance, tokenDistributed]) => {
-      assert.equal(tokenDistributed.valueOf(), 120000)
-      assert.equal(balance.valueOf(), toGwei(24000))
+    }).then(([balance, tokenDistributed , balance6, balance7, balance8]) => {
+      assert.equal(tokenDistributed.valueOf(), 120400)
+      assert.equal(balance.valueOf(), toGwei(24080))
+      assert.equal(balance6.valueOf(), toGwei(1204))
+      assert.equal(balance7.valueOf(), toGwei(3612))
+      assert.equal(balance8.valueOf(), toGwei(2408))
     })
   })
 
@@ -343,7 +392,7 @@ contract('FreeDist0xNIL', function (accounts) {
     let dist
     return FreeDist0xNIL.deployed().then(instance => {
       dist = instance
-      return dist.giveTipToArtist()
+      return dist.tipTheArtist()
     }).catch(() => {
       assert(true)
     })

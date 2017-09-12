@@ -20,4 +20,8 @@ contract Token0xNIL is MintableToken {
     return mintingFinished;
   }
 
+  function getDecimals() public constant returns(uint) {
+    return decimals;
+  }
+
 }
