@@ -4,9 +4,6 @@
   "description": "The 0xNIL factory",
   "devDependencies": {},
   "dependencies": {
-  },
-  "scripts": {
-    "runTestrpc": "testrpc -a 20"
+    "zeppelin": "^1.2.0"
   }
-
 }

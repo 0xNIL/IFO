@@ -1,7 +1,7 @@
 pragma solidity ^0.4.11;
 
 
-import 'zeppelin-solidity/contracts/token/MintableToken.sol';
+import 'zeppelin/token/MintableToken.sol';
 
 
 contract Token0xNIL is MintableToken {
@@ -10,6 +10,6 @@ contract Token0xNIL is MintableToken {
 
   string public symbol = "NIL";
 
-  uint public decimals = 9;
+  uint8 public decimals = 9;
 
 }

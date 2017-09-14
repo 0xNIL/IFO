@@ -1,452 +1,256 @@
 /* globals Promise */
 
-const FreeDist0xNIL = artifacts.require('./FreeDist0xNIL.sol')
+const expectThrow = require('./helpers/expectThrow')
 
-function toGwei(amount) {
+const FreeDist0xNIL = artifacts.require('./FreeDist0xNIL.sol')
+const Token0xNIL = artifacts.require('./Token0xNIL.sol')
+
+function toNanoNIL(amount) {
   return amount * 1e9
 }
 
-contract('FreeDist0xNIL', function (accounts) {
+contract('FreeDist0xNIL', accounts => {
 
   let current
   let startBlock
   let endBlock
   let duration
   let artist = accounts[1]
+  let token
+  let dist
 
-  it('should be waiting to start', () => {
-    let dist
-    return FreeDist0xNIL.deployed().then(instance => {
-      dist = instance
-      return dist.isInitiated.call()
-    }).then(result => {
-      assert.equal(result.valueOf(), false)
-    })
+  before(async () => {
+    dist = await FreeDist0xNIL.new()
   })
 
-  it('should throw an error if call changeDuration before starting', () => {
-    let dist
-    return FreeDist0xNIL.deployed().then(instance => {
-      dist = instance
-      return dist.changeDuration(100)
-    }).catch(err => {
-      assert(true)
-    })
+  it('should be waiting to start', async () => {
+    assert.equal(await dist.isInitiated(), false)
   })
 
-  it('should isInitiated return false', () => {
-    let dist
-    return FreeDist0xNIL.deployed().then(instance => {
-      dist = instance
-      return dist.isInitiated()
-    }).then(result => {
-      assert.equal(result.valueOf(), false)
-    })
+  it('should throw an error if call changeDuration before starting', async () => {
+    await expectThrow(dist.changeDuration(100))
   })
 
-  it('should add two supporters: accounts[6] and accounts[7]', () => {
-    let dist
-    return FreeDist0xNIL.deployed().then(instance => {
-      dist = instance
-      return dist.addSupporter(accounts[6], 1)
-    }).then(result => {
-      return dist.addSupporter(accounts[7], 2)
-    }).then(result => {
-      return Promise.all([
-        dist.supporterAddress.call(0),
-        dist.supporterAddress.call(1),
-        dist.supporters.call(accounts[6]),
-        dist.supporters.call(accounts[7]),
-        dist.totalSupporters.call(),
-        dist.totalSupportersRatios.call()
-      ])
-    }).then(([supporter0, supporter1, ratio0, ratio1, totalSupporters, totalSupportersRatios]) => {
-      assert.equal(supporter0.valueOf(), accounts[6])
-      assert.equal(supporter1.valueOf(), accounts[7])
-      assert.equal(ratio0.valueOf(), 1)
-      assert.equal(ratio1.valueOf(), 2)
-      assert.equal(totalSupporters.valueOf(), 2)
-      assert.equal(totalSupportersRatios.valueOf(), 3)
-    })
+  it('should return 0 if call getTokensPerBlockNumber when not active', async () => {
+    assert.equal(await dist.getTokensPerBlockNumber(), 0)
   })
 
-  it('should add a new supporters accounts[8] and change accounts[7] ratio', () => {
-    let dist
-    return FreeDist0xNIL.deployed().then(instance => {
-      dist = instance
-      return dist.addSupporter(accounts[7], 3)
-    }).then(result => {
-      return dist.addSupporter(accounts[8], 2)
-    }).then(result => {
-      return Promise.all([
-        dist.supporterAddress.call(1),
-        dist.supporterAddress.call(2),
-        dist.supporters.call(accounts[7]),
-        dist.supporters.call(accounts[8])
-      ])
-    }).then(([supporter1, supporter2, ratio1, ratio2]) => {
-      assert.equal(supporter1.valueOf(), accounts[7])
-      assert.equal(supporter2.valueOf(), accounts[8])
-      assert.equal(ratio1.valueOf(), 3)
-      assert.equal(ratio2.valueOf(), 2)
-    })
+  it('should add two supporters: accounts[6] and accounts[7]', async () => {
+    await dist.addSupporter(accounts[6], 1)
+    await dist.addSupporter(accounts[7], 2)
+
+    assert.equal(await dist.supporterAddress(0), accounts[6])
+    assert.equal(await dist.supporterAddress(1), accounts[7])
+    assert.equal(await dist.supporters(accounts[6]), 1)
+    assert.equal(await dist.supporters(accounts[7]), 2)
+    assert.equal(await dist.totalSupporters(), 2)
+    assert.equal(await dist.totalSupportersRatios(), 3)
   })
 
-  it('should initiate the distribution', () => {
-    let dist
-    return FreeDist0xNIL.deployed().then(instance => {
-      dist = instance
-      current = web3.eth.blockNumber
-      startBlock = current + 10
-      duration = 110
-      endBlock = startBlock + duration
-      return dist.startDistribution(startBlock, duration, artist)
-    }).then(() => {
-      return Promise.all([
-        dist.isInitiated(),
-        dist.endBlock.call()
-      ])
-    }).then(([isInitiated, _endBlock]) => {
-      assert.equal(isInitiated.valueOf(), true)
-      assert.equal(_endBlock, endBlock)
-    }).catch(err => {
-      console.error('err', err)
-    })
+  it('should initiate the distribution', async () => {
+    current = web3.eth.blockNumber
+    startBlock = current + 10
+    duration = 110
+    endBlock = startBlock + duration
+    await dist.startDistribution(startBlock, duration, artist)
+
+    token = Token0xNIL.at(await dist.token())
+
+    assert.equal(await dist.isInitiated(), true)
+    assert.equal(await dist.endBlock(), endBlock)
   })
 
-  it('should throw adding a new supporter accounts[9]', () => {
-    let dist
-    return FreeDist0xNIL.deployed().then(instance => {
-      dist = instance
-      return dist.addSupporter(accounts[9], 1)
-    }).catch(() => {
-      assert(true)
-    })
+  it('should add a new supporters accounts[8] and change accounts[7] ratio', async () => {
+    await dist.addSupporter(accounts[7], 3)
+
+    await dist.addSupporter(accounts[8], 2)
+
+    assert.equal(await dist.supporterAddress(1), accounts[7])
+    assert.equal(await dist.supporterAddress(2), accounts[8])
+    assert.equal(await dist.supporters(accounts[7]), 3)
+    assert.equal(await dist.supporters(accounts[8]), 2)
   })
 
-  it('should throw sending ethers too early', () => {
+  it('should throw sending ethers too early', async () => {
 
-    let dist
-    return FreeDist0xNIL.deployed().then(instance => {
-      dist = instance
-      return dist.sendTransaction({from: accounts[0], value: 1})
-    }).catch(() => {
-      assert(true)
-    })
+    await expectThrow(dist.sendTransaction({from: accounts[0], value: 1}))
 
   })
 
-  it('should mint 10 tokens receiving 0 ether', () => {
+  it('should mint 10 tokens receiving 0 ether', async () => {
 
-    let dist
-
-    const iterate = () => {
+    const iterate = async () => {
       // iterates until the transaction succeds, i.e. startBlock >= eth.blockNumber
-      return dist.sendTransaction({from: accounts[0], value: 0}).then(() => {
-        return dist.isActive()
-      }).catch(() => {
-        return iterate()
-      })
+      try {
+        await dist.sendTransaction({from: accounts[0], value: 0})
+        return await dist.isActive()
+      } catch (err) {
+        return await iterate()
+      }
     }
 
-    return FreeDist0xNIL.deployed().then(instance => {
-      dist = instance
-      return iterate()
-    }).then(isActive => {
-      assert.equal(isActive, true)
-      return dist.sendTransaction({from: accounts[2], value: 0})
-    }).then(result => {
 
-      return Promise.all([
-        dist.tokenDistributed.call(),
-        dist.totalParticipants.call(),
-        dist.totalSupply(),
-        dist.tokenBalanceOf(accounts[2]),
-        dist.tokenBalanceOf(artist)
-      ])
-    }).then(([tokenDistributed, totalParticipants, totalSupply, balance, aBalance]) => {
-      assert.equal(tokenDistributed.valueOf(), 2800)
-      assert.equal(totalParticipants.valueOf(), 2)
-      assert.equal(totalSupply.valueOf(), 2800 * 1e9)
-      assert.equal(balance.valueOf(), toGwei(1400))
-      assert.equal(aBalance.valueOf(), 0)
-    })
+    assert.equal(await iterate(), true)
+    await dist.sendTransaction({from: accounts[2], value: 0})
+    assert.equal(await dist.tokenDistributed(), 2800)
+    assert.equal(await dist.totalParticipants(), 2)
+    assert.equal(await token.totalSupply(), toNanoNIL(2800))
+    assert.equal(await token.balanceOf(accounts[2]), toNanoNIL(1400))
+    assert.equal(await token.balanceOf(artist), 0)
 
   })
 
-  it('should assign tokens to accounts 2 and 3 and verify that all the values are consistent', () => {
+  it('should throw adding a new supporter accounts[9] when dist is active', async () => {
+    await expectThrow(dist.addSupporter(accounts[9], 1))
+  })
 
-    let dist
-    return FreeDist0xNIL.deployed().then(instance => {
-      dist = instance
-      return Promise.all([
-        dist.sendTransaction({from: accounts[2], value: 1}),
-        dist.sendTransaction({from: accounts[3], value: 0}),
-        dist.sendTransaction({from: accounts[3], value: 0}),
-        dist.sendTransaction({from: accounts[3], value: 1})
-      ])
-    }).then(() => {
-      return Promise.all([
-        dist.tokenBalanceOf(artist),
-        dist.tokenBalanceOf(accounts[2]),
-        dist.tokenBalanceOf(accounts[3]),
-        dist.totalParticipants.call(),
-        dist.tokenDistributed.call()
-      ])
-    }).then(([balance1, balance2, balance3, participants, distributed]) => {
-      assert.equal(balance1.valueOf(), 0)
-      assert.equal(balance2.valueOf(), toGwei(2800))
-      assert.equal(balance3.valueOf(), toGwei(4200))
-      assert.equal(participants.valueOf(), 3)
-      assert.equal(distributed.valueOf(), 8400)
-    })
+  it('should assign tokens to accounts 2 and 3 and verify that all the values are consistent', async () => {
+
+    await dist.sendTransaction({from: accounts[2], value: 1})
+    await dist.sendTransaction({from: accounts[3], value: 0})
+    await dist.sendTransaction({from: accounts[3], value: 0})
+    await dist.sendTransaction({from: accounts[3], value: 1})
+
+    assert.equal(await token.balanceOf(artist), 0)
+    assert.equal(await token.balanceOf(accounts[2]), toNanoNIL(2800))
+    assert.equal(await token.balanceOf(accounts[3]), toNanoNIL(4200))
+    assert.equal(await dist.totalParticipants(), 3)
+    assert.equal(await dist.tokenDistributed(), 8400)
 
   })
 
 
-  it('should assign tokens to account 4 using requireToken and verify that all the values are consistent', () => {
+  it('should assign tokens to account 4 using requireToken and verify that the balance is consistent', async () => {
 
-    let dist
-    return FreeDist0xNIL.deployed().then(instance => {
-      dist = instance
-      return Promise.all([
-        dist.sendTransaction({from: accounts[4], value: 0, data: '0x7a0c39'}),
-        dist.sendTransaction({from: accounts[4], value: 0, data: '0x7a0c39'}),
-        dist.sendTransaction({from: accounts[4], value: 0, data: '0x7a0c39'}),
-        dist.sendTransaction({from: accounts[4], value: 0, data: '0x7a0c39'})
-      ])
-    }).then(() => {
-      return Promise.all([
-        dist.tokenBalanceOf(accounts[4])
-      ])
-    }).then(([balance4]) => {
-      assert.equal(balance4.valueOf(), toGwei(5600))
-    })
+    await dist.sendTransaction({from: accounts[4], value: 0, data: '0x7a0c39'})
+    await dist.sendTransaction({from: accounts[4], value: 0, data: '0x7a0c39'})
+    await dist.sendTransaction({from: accounts[4], value: 0, data: '0x7a0c39'})
+    await dist.sendTransaction({from: accounts[4], value: 0, data: '0x7a0c39'})
+    assert.equal(await token.balanceOf(accounts[4]), toNanoNIL(5600))
 
   })
 
 
-  it('should throw if sending more than 1 wei', () => {
-    let dist
-    return FreeDist0xNIL.deployed().then(instance => {
-      dist = instance
-      return dist.sendTransaction({from: accounts[2], value: 10})
-    }).catch(() => {
-      assert(true)
-    })
+  it('should throw if sending more than 1 wei', async () => {
+    await expectThrow(dist.sendTransaction({from: accounts[2], value: 10}))
   })
 
-  it('should assign < 100 tokens each to accounts from 10 to 19', () => {
-    let dist
+  it('should assign < 10000 tokens each to accounts from 10 to 19', async () => {
 
-    const iterate = (account, counter) => {
-      return dist.sendTransaction({from: account, value: 0}).then(() => {
-        if (--counter > 0) {
-          return iterate(account, counter)
-        } else {
-          return Promise.resolve(true)
-        }
-      })
-          .catch(err => {
-            console.log(account, counter)
-            console.log(err.stack)
-          })
+    const iterate = async (account, counter) => {
+      for (let i = 0; i < counter; i++) {
+        await dist.sendTransaction({from: account, value: 0})
+      }
     }
 
-    return FreeDist0xNIL.deployed().then(instance => {
-      dist = instance
-      return iterate(accounts[10], 7)
-          .then(() => iterate(accounts[11], 7))
-          .then(() => iterate(accounts[12], 7))
-          .then(() => iterate(accounts[13], 7))
-          .then(() => iterate(accounts[14], 8))
-          .then(() => iterate(accounts[15], 8))
-          .then(() => iterate(accounts[16], 8))
-          .then(() => iterate(accounts[17], 8))
-          .then(() => iterate(accounts[18], 9))
-          .then(() => iterate(accounts[19], 9))
-    }).then(() => {
-      return Promise.all([
-        dist.tokenBalanceOf(accounts[10]),
-        dist.tokenBalanceOf(accounts[11]),
-        dist.tokenBalanceOf(accounts[12]),
-        dist.tokenBalanceOf(accounts[13]),
-        dist.tokenBalanceOf(accounts[14]),
-        dist.tokenBalanceOf(accounts[15]),
-        dist.tokenBalanceOf(accounts[16]),
-        dist.tokenBalanceOf(accounts[17]),
-        dist.tokenBalanceOf(accounts[18]),
-        dist.tokenBalanceOf(accounts[19]),
-        dist.tokenDistributed.call()
-      ])
-    }).then(([balance10, balance11, balance12, balance13, balance14, balance15, balance16, balance17, balance18, balance19, tokenDistributed]) => {
-      assert.equal(balance10.valueOf(), toGwei(9800))
-      assert.equal(balance11.valueOf(), toGwei(9800))
-      assert.equal(balance12.valueOf(), toGwei(9800))
-      assert.equal(balance13.valueOf(), toGwei(9200))
-      assert.equal(balance14.valueOf(), toGwei(9600))
-      assert.equal(balance15.valueOf(), toGwei(9600))
-      assert.equal(balance16.valueOf(), toGwei(9600))
-      assert.equal(balance17.valueOf(), toGwei(9600))
-      assert.equal(balance18.valueOf(), toGwei(9200))
-      assert.equal(balance19.valueOf(), toGwei(9000))
-      assert.equal(tokenDistributed.valueOf(), 109200)
-    })
+    assert.equal(await dist.getTokensPerBlockNumber(), 1400)
+
+    await iterate(accounts[10], 7)
+    await iterate(accounts[11], 7)
+    await iterate(accounts[12], 7)
+    await iterate(accounts[13], 7)
+
+    assert.equal(await dist.getTokensPerBlockNumber(), 1200)
+
+    await iterate(accounts[14], 8)
+    await iterate(accounts[15], 8)
+    await iterate(accounts[16], 8)
+    await iterate(accounts[17], 8)
+    await iterate(accounts[18], 9)
+    await iterate(accounts[19], 9)
+
+    assert.equal(await token.balanceOf(accounts[10]), toNanoNIL(9800))
+    assert.equal(await token.balanceOf(accounts[11]), toNanoNIL(9800))
+    assert.equal(await token.balanceOf(accounts[12]), toNanoNIL(9800))
+    assert.equal(await token.balanceOf(accounts[13]), toNanoNIL(9000))
+    assert.equal(await token.balanceOf(accounts[14]), toNanoNIL(9600))
+    assert.equal(await token.balanceOf(accounts[15]), toNanoNIL(9600))
+    assert.equal(await token.balanceOf(accounts[16]), toNanoNIL(9600))
+    assert.equal(await token.balanceOf(accounts[17]), toNanoNIL(9600))
+    assert.equal(await token.balanceOf(accounts[18]), toNanoNIL(9000))
+    assert.equal(await token.balanceOf(accounts[19]), toNanoNIL(9000))
+
+    assert.equal(await dist.getTokensPerBlockNumber(), 1000)
+
+    assert.equal(await dist.tokenDistributed(), 108800)
 
   })
 
-  it('should limit the wallet to 10000 tokens', () => {
-    let dist
-
-    const iterate = account => {
-      return dist.sendTransaction({from: account, value: 0}).then(() => {
-        return iterate(account)
-      }).catch(() => {
-        return Promise.resolve()
-      })
+  it('should limit the wallet to 10000 tokens', async () => {
+    const iterate = async account => {
+      try {
+        await  dist.sendTransaction({from: account, value: 0})
+        return await iterate(account)
+      } catch (err) {
+        return await null
+      }
     }
 
-    return FreeDist0xNIL.deployed().then(instance => {
-      dist = instance
-      return iterate(accounts[2])
-    }).then(() => {
-      return dist.tokenBalanceOf(accounts[2])
-    }).then(balance2 => {
-      assert.equal(balance2.valueOf(), toGwei(10000))
-    })
+    await iterate(accounts[2])
+    assert.equal(await token.balanceOf(accounts[2]), toNanoNIL(10000))
   })
 
-  it('should change the duration', () => {
-    let dist
-
-    return FreeDist0xNIL.deployed().then(instance => {
-      dist = instance
-      endBlock = web3.eth.blockNumber + 5
-      duration = endBlock - startBlock
-      return dist.changeDuration(duration)
-    }).then(() => {
-      assert(true)
-    })
+  it('should change the duration', async () => {
+    endBlock = web3.eth.blockNumber + 5
+    duration = endBlock - startBlock
+    await dist.changeDuration(duration)
+    assert.equal(await dist.endBlock(), startBlock + duration)
   })
 
-  it('should end the distribution', () => {
-
-    let dist
-
-    const iterate = () => {
+  it('should end the distribution', async () => {
+    const iterate = async () => {
       // iterates until the transaction fails
-      return dist.sendTransaction({from: accounts[0], value: 0}).then(() => {
-        return iterate()
-      }).catch(() => {
-        return Promise.resolve(true)
-      })
+      try {
+        await dist.sendTransaction({from: accounts[0], value: 0})
+        return await iterate()
+      } catch (err) {
+        return await null
+      }
     }
-
-    return FreeDist0xNIL.deployed().then(instance => {
-      dist = instance
-      return iterate()
-    }).then(() => {
-      return dist.hasEnded()
-    }).then(result => {
-      assert.equal(result.valueOf(), true)
-    })
-
+    await iterate()
+    assert.equal(await dist.hasEnded(), true)
   })
 
-  it('should hasEnded return true', () => {
-    let dist
-    return FreeDist0xNIL.deployed().then(instance => {
-      dist = instance
-      return dist.hasEnded()
-    }).then(result => {
-      assert.equal(result.valueOf(), true)
-    })
+  it('should hasEnded return true', async () => {
+    assert.equal(await dist.hasEnded(), true)
   })
 
-  it('should verify minting has not finished', () => {
-    let dist
-    return FreeDist0xNIL.deployed().then(instance => {
-      dist = instance
-      return dist.isMintingFinished()
-    }).then(result => {
-      assert.equal(result.valueOf(), false)
-    })
+  it('should verify minting has not finished', async () => {
+    assert.equal(await dist.isMintingFinished(), false)
   })
 
-  it('should tip the artist and the supporters', () => {
-    let dist
-    return FreeDist0xNIL.deployed().then(instance => {
-      dist = instance
-      return dist.tipTheArtist()
-    }).then(() => {
-      return Promise.all([
-        dist.tokenBalanceOf(artist),
-        dist.tokenDistributed.call(),
-        dist.tokenBalanceOf(accounts[6]),
-        dist.tokenBalanceOf(accounts[7]),
-        dist.tokenBalanceOf(accounts[8])
-      ])
-    }).then(([balance, tokenDistributed , balance6, balance7, balance8]) => {
-      assert.equal(tokenDistributed.valueOf(), 120400)
-      assert.equal(balance.valueOf(), toGwei(24080))
-      assert.equal(balance6.valueOf(), toGwei(1204))
-      assert.equal(balance7.valueOf(), toGwei(3612))
-      assert.equal(balance8.valueOf(), toGwei(2408))
-    })
+  it('should tip the artist and the supporters', async () => {
+    await dist.tipTheArtist()
+
+    assert.equal(await dist.tokenDistributed(), 120000)
+    assert.equal(await token.balanceOf(artist), toNanoNIL(24000))
+    assert.equal(await token.balanceOf(accounts[6]), toNanoNIL(1200))
+    assert.equal(await token.balanceOf(accounts[7]), toNanoNIL(3600))
+    assert.equal(await token.balanceOf(accounts[8]), toNanoNIL(2400))
   })
 
-  it('should verify minting has finished', () => {
-    let dist
-    return FreeDist0xNIL.deployed().then(instance => {
-      dist = instance
-      return dist.isMintingFinished()
-    }).then(result => {
-      assert.equal(result.valueOf(), true)
-    })
+  it('should verify minting has finished', async () => {
+    assert.equal(await dist.isMintingFinished(), true)
   })
 
-  it('should throw if trying to tip the artist again', () => {
-    let dist
-    return FreeDist0xNIL.deployed().then(instance => {
-      dist = instance
-      return dist.tipTheArtist()
-    }).catch(() => {
-      assert(true)
-    })
+  it('should throw if trying to tip the artist again', async () => {
+    await expectThrow(dist.tipTheArtist())
   })
 
-  it('should throw if distribution has ended', () => {
-    let dist
-    return FreeDist0xNIL.deployed().then(instance => {
-      dist = instance
-      return dist.sendTransaction({from: accounts[2], value: 0})
-    }).catch(() => {
-      assert(true)
-    })
+  it('should throw if distribution has ended', async () => {
+    await expectThrow(dist.sendTransaction({from: accounts[2], value: 0}))
   })
 
-  it('should throw an error trying to change the duration after ended', () => {
-    let dist
-    return FreeDist0xNIL.deployed().then(instance => {
-      dist = instance
-      duration = 300
-      return dist.changeDuration(duration)
-    }).catch(err => {
-      assert(true)
-    })
+  it('should throw an error trying to change the duration after ended', async () => {
+    duration = 300
+    await expectThrow(dist.changeDuration(duration))
   })
 
-  it('should throw an error trying to restart the distribution', () => {
-    let dist
-    return FreeDist0xNIL.deployed().then(instance => {
-      dist = instance
-      current = web3.eth.blockNumber
-      startBlock = current + 5
-      duration = 200
-      return dist.startDistribution(startBlock, duration, artist)
-    }).catch(err => {
-      assert(true)
-    })
+  it('should throw an error trying to restart the distribution', async () => {
+    current = web3.eth.blockNumber
+    startBlock = current + 5
+    duration = 200
+    await expectThrow(dist.startDistribution(startBlock, duration, artist))
   })
 
 })

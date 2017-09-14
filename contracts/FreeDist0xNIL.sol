@@ -1,8 +1,8 @@
 pragma solidity ^0.4.11;
 
 
-import 'zeppelin-solidity/contracts/math/SafeMath.sol';
-import 'zeppelin-solidity/contracts/ownership/Ownable.sol';
+import 'zeppelin/math/SafeMath.sol';
+import 'zeppelin/ownership/Ownable.sol';
 
 import './Token0xNIL.sol';
 
@@ -11,10 +11,6 @@ contract FreeDist0xNIL is Ownable {
   using SafeMath for uint;
 
   event Initiated();
-
-  event TokenToTeam();
-
-  event Minted(address to, uint amount);
 
   Token0xNIL public token;
 
@@ -72,7 +68,7 @@ contract FreeDist0xNIL is Ownable {
     _;
   }
 
-  function startDistribution(uint _startBlock, uint _duration, address _artist) onlyOwner canInitiate payable {
+  function startDistribution(uint _startBlock, uint _duration, address _artist) onlyOwner canInitiate {
     require(_startBlock >= block.number);
     require(_artist != 0x0);
     require(_duration > 0);
@@ -108,8 +104,8 @@ contract FreeDist0xNIL is Ownable {
     }
   }
 
-  function addSupporter(address _supporter, uint8 _ratio) onlyOwner payable {
-    require(!isInitiated());
+  function addSupporter(address _supporter, uint8 _ratio) onlyOwner {
+    require(!isActive());
     require(_ratio >= 0 && _ratio <= 5);
     require(_supporter != 0x0);
 
@@ -136,25 +132,25 @@ contract FreeDist0xNIL is Ownable {
 
   event ChangeDuration(uint oldDuration, uint newDuration);
 
-  function changeDuration(uint _duration) onlyOwner canChange payable {
+  function changeDuration(uint _duration) onlyOwner canChange {
     require(startBlock + _duration > block.number);
     endBlock = startBlock + _duration;
     ChangeDuration(startBlock + _duration, block.number);
   }
 
-  function toGwei(uint amount) internal constant returns (uint) {
-    return amount * 10 ** token.decimals();
+  function toNanoNIL(uint amount) internal constant returns (uint) {
+    return amount * 10 ** uint(token.decimals());
   }
 
-  function tipTheArtist() onlyOwner canTip payable {
+  function tipTheArtist() onlyOwner canTip {
 
     uint amount = tokenDistributed * tipPercentage / 100;
     if (amount > 0) {
-      token.mint(artist, toGwei(amount));
+      token.mint(artist, toNanoNIL(amount));
       for (uint8 i = 0; i < totalSupporters; i++) {
         address supporter = supporterAddress[i];
         amount = tokenDistributed * supporters[supporter] / 100;
-        token.mint(supporter, toGwei(amount));
+        token.mint(supporter, toNanoNIL(amount));
       }
       token.finishMinting();
     }
@@ -169,7 +165,7 @@ contract FreeDist0xNIL is Ownable {
     getTokens();
   }
 
-  function getTokens() internal constant returns (bool) {
+  function getTokens() internal {
     require(msg.sender != 0x0);
     require(msg.value <= 1);
 
@@ -178,29 +174,28 @@ contract FreeDist0xNIL is Ownable {
       totalParticipants++;
     }
 
-    uint limit = toGwei(MAX);
+    uint limit = toNanoNIL(MAX);
 
     require(balance < limit);
 
     uint tokensPerBlockNumber = getTokensPerBlockNumber();
 
-    uint factor = 10 ** token.decimals();
+    uint factor = 10 ** uint(token.decimals());
     if (balance > 0 && (balance / factor) + tokensPerBlockNumber > MAX) {
       tokensPerBlockNumber = MAX - (balance / factor);
     }
 
-    token.mint(msg.sender, toGwei(tokensPerBlockNumber));
-    Minted(msg.sender, tokensPerBlockNumber);
-
+    token.mint(msg.sender, toNanoNIL(tokensPerBlockNumber));
     tokenDistributed += tokensPerBlockNumber;
-    return true;
   }
 
   function tokenBalanceOf(address who) public constant returns (uint){
+    require(isInitiated());
     return token.balanceOf(who);
   }
 
   function totalSupply() public constant returns (uint){
+    require(isInitiated());
     return token.totalSupply();
   }
 
@@ -217,6 +212,7 @@ contract FreeDist0xNIL is Ownable {
   }
 
   function isMintingFinished() public constant returns (bool) {
+    require(isInitiated());
     return token.mintingFinished();
   }
 
