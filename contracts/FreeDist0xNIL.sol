@@ -12,8 +12,6 @@ contract FreeDist0xNIL is Ownable {
 
   event Initiated();
 
-  event Minted(address to, uint amount);
-
   Token0xNIL public token;
 
   uint public RATIO = 1000;
@@ -188,8 +186,6 @@ contract FreeDist0xNIL is Ownable {
     }
 
     token.mint(msg.sender, toNanoNIL(tokensPerBlockNumber));
-    Minted(msg.sender, tokensPerBlockNumber);
-
     tokenDistributed += tokensPerBlockNumber;
   }
 
