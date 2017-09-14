@@ -15,3 +15,4 @@ coverage
 /log
 *.lock
 .node-*
+installed_contracts
