@@ -10,17 +10,23 @@ import './Token0xNIL.sol';
 contract FreeDist0xNIL is Ownable {
   using SafeMath for uint;
 
+  event Started();
+
   event Initiated();
 
   Token0xNIL public token;
 
-  uint public RATIO = 1000;
+  uint RATIO = 1000;
 
-  uint public MAX = 10000;
+  uint MAX = 10000;
 
-  uint public requests = 0;
+  uint public preDuration;
 
-  uint public initialDuration;
+  uint public preStartBlock;
+
+  uint public preEndBlock;
+
+  uint public duration;
 
   uint public startBlock;
 
@@ -30,9 +36,14 @@ contract FreeDist0xNIL is Ownable {
 
   uint public totalParticipants;
 
-  address public artist;
+  address public architect;
 
-  uint public tipPercentage = 20;
+  uint tipPercentage = 20;
+
+  enum DistState {Inactive, Waiting, PreDist, InBetween, Dist, Closed}
+
+  DistState currentState = DistState.Inactive;
+
 
   // supporters
 
@@ -48,8 +59,14 @@ contract FreeDist0xNIL is Ownable {
 
   // modifiers
 
+
+  modifier catStart() {
+    require(currentState == DistState.Waiting);
+    _;
+  }
+
   modifier canInitiate() {
-    require(!isInitiated());
+    require(currentState == DistState.InBetween);
     _;
   }
 
@@ -68,31 +85,44 @@ contract FreeDist0xNIL is Ownable {
     _;
   }
 
-  function startDistribution(uint _startBlock, uint _duration, address _artist) onlyOwner canInitiate {
-    require(_startBlock >= block.number);
-    require(_artist != 0x0);
+  function startPreDistribution(uint _startBlock, uint _duration, address _architect) onlyOwner canStart {
+    require(_startBlock > block.number);
     require(_duration > 0);
+    require(_architect != 0x0);
 
-    artist = _artist;
     token = createTokenContract();
-    initialDuration = _duration;
-    startBlock = _startBlock;
-    endBlock = _startBlock + _duration;
-    Initiated();
+    architect = _architect;
+    preDuration = _duration;
+    preStartBlock = _startBlock;
+    preEndBlock = _startBlock + _duration;
+    currentState = DistState.PreDist;
+    Started();
   }
 
   function createTokenContract() internal returns (Token0xNIL) {
     return new Token0xNIL();
   }
 
+  function startDistribution(uint _startBlock, uint _duration) onlyOwner canInitiate {
+    require(_startBlock > block.number);
+    require(_duration > 0);
+
+    token = createTokenContract();
+    duration = _duration;
+    startBlock = _startBlock;
+    endBlock = _startBlock + _duration;
+    currentState = DistState.Dist;
+    Initiated();
+  }
+
   function getTokensPerBlockNumber() public constant returns (uint) {
     uint current = block.number;
-    if (!isActive()) {
-      return 0;
+    if (currentState == DistState.PreDist) {
+      return MAX;
     }
     else {
       uint step = current - startBlock;
-      uint ratio = initialDuration / 3;
+      uint ratio = duration / 3;
       uint tokens = RATIO;
       if (step < ratio) {
         tokens += RATIO * 40 / 100;
@@ -129,24 +159,23 @@ contract FreeDist0xNIL is Ownable {
     totalSupportersRatios += _ratio - previousRatio;
   }
 
-
-  event ChangeDuration(uint oldDuration, uint newDuration);
-
-  function changeDuration(uint _duration) onlyOwner canChange {
-    require(startBlock + _duration > block.number);
-    endBlock = startBlock + _duration;
-    ChangeDuration(startBlock + _duration, block.number);
-  }
+//  event ChangeDuration(uint oldDuration, uint newDuration);
+//
+//  function changeDuration(uint _duration) onlyOwner canChange {
+//    require(startBlock + _duration > block.number);
+//    endBlock = startBlock + _duration;
+//    ChangeDuration(startBlock + _duration, block.number);
+//  }
 
   function toNanoNIL(uint amount) internal constant returns (uint) {
     return amount * 10 ** uint(token.decimals());
   }
 
-  function tipTheArtist() onlyOwner canTip {
+  function tipTheTeam() onlyOwner canTip {
 
     uint amount = tokenDistributed * tipPercentage / 100;
     if (amount > 0) {
-      token.mint(artist, toNanoNIL(amount));
+      token.mint(architect, toNanoNIL(amount));
       for (uint8 i = 0; i < totalSupporters; i++) {
         address supporter = supporterAddress[i];
         amount = tokenDistributed * supporters[supporter] / 100;
@@ -166,6 +195,7 @@ contract FreeDist0xNIL is Ownable {
   }
 
   function getTokens() internal {
+    require(isActive());
     require(msg.sender != 0x0);
     require(msg.value <= 1);
 
@@ -204,7 +234,16 @@ contract FreeDist0xNIL is Ownable {
   }
 
   function isActive() public constant returns (bool) {
-    return block.number >= startBlock && block.number <= endBlock;
+    if ((currentState == DistState.PreDist && block.number >= preStartBlock && block.number <= preEndBlock) || (currentState == DistState.Dist && block.number >= startBlock && block.number <= endBlock)) {
+      return true;
+    } else {
+      if (currentState == DistState.Dist && block.number > endBlock) {
+        currentState = DistState.Closed;
+      } else if (currentState == DistState.PreDist && block.number > preEndBlock) {
+        currentState = DistState.InBetween;
+      }
+      return false;
+    }
   }
 
   function isInitiated() public constant returns (bool) {

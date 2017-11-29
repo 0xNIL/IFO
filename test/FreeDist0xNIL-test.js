@@ -15,7 +15,7 @@ contract('FreeDist0xNIL', accounts => {
   let startBlock
   let endBlock
   let duration
-  let artist = accounts[1]
+  let architect = accounts[1]
   let token
   let dist
 
@@ -52,7 +52,7 @@ contract('FreeDist0xNIL', accounts => {
     startBlock = current + 10
     duration = 110
     endBlock = startBlock + duration
-    await dist.startDistribution(startBlock, duration, artist)
+    await dist.startDistribution(startBlock, duration, architect)
 
     token = Token0xNIL.at(await dist.token())
 
@@ -96,7 +96,7 @@ contract('FreeDist0xNIL', accounts => {
     assert.equal(await dist.totalParticipants(), 2)
     assert.equal(await token.totalSupply(), toNanoNIL(2800))
     assert.equal(await token.balanceOf(accounts[2]), toNanoNIL(1400))
-    assert.equal(await token.balanceOf(artist), 0)
+    assert.equal(await token.balanceOf(architect), 0)
 
   })
 
@@ -111,7 +111,7 @@ contract('FreeDist0xNIL', accounts => {
     await dist.sendTransaction({from: accounts[3], value: 0})
     await dist.sendTransaction({from: accounts[3], value: 1})
 
-    assert.equal(await token.balanceOf(artist), 0)
+    assert.equal(await token.balanceOf(architect), 0)
     assert.equal(await token.balanceOf(accounts[2]), toNanoNIL(2800))
     assert.equal(await token.balanceOf(accounts[3]), toNanoNIL(4200))
     assert.equal(await dist.totalParticipants(), 3)
@@ -219,11 +219,11 @@ contract('FreeDist0xNIL', accounts => {
     assert.equal(await dist.isMintingFinished(), false)
   })
 
-  it('should tip the artist and the supporters', async () => {
-    await dist.tipTheArtist()
+  it('should tip architect and supporters', async () => {
+    await dist.tipTheTeam()
 
     assert.equal(await dist.tokenDistributed(), 120000)
-    assert.equal(await token.balanceOf(artist), toNanoNIL(24000))
+    assert.equal(await token.balanceOf(architect), toNanoNIL(24000))
     assert.equal(await token.balanceOf(accounts[6]), toNanoNIL(1200))
     assert.equal(await token.balanceOf(accounts[7]), toNanoNIL(3600))
     assert.equal(await token.balanceOf(accounts[8]), toNanoNIL(2400))
@@ -233,8 +233,8 @@ contract('FreeDist0xNIL', accounts => {
     assert.equal(await dist.isMintingFinished(), true)
   })
 
-  it('should throw if trying to tip the artist again', async () => {
-    await expectThrow(dist.tipTheArtist())
+  it('should throw if trying to tip again', async () => {
+    await expectThrow(dist.tipTheTeam())
   })
 
   it('should throw if distribution has ended', async () => {
@@ -250,7 +250,7 @@ contract('FreeDist0xNIL', accounts => {
     current = web3.eth.blockNumber
     startBlock = current + 5
     duration = 200
-    await expectThrow(dist.startDistribution(startBlock, duration, artist))
+    await expectThrow(dist.startDistribution(startBlock, duration, architect))
   })
 
 })
