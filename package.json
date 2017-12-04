@@ -4,9 +4,12 @@
   "description": "The 0xNIL factory",
   "devDependencies": {},
   "dependencies": {
+    "ethereumjs-tx": "^1.3.3",
+    "ethereumjs-util": "^5.1.2",
+    "solc": "^0.4.19",
+    "web3": "^1.0.0-beta.26"
   },
   "scripts": {
-    "runTestrpc": "testrpc -a 20"
+    "testServer": "ganache-cli -a 20"
   }
-
 }
