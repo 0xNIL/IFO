@@ -3,10 +3,8 @@
   "version": "0.0.1",
   "description": "The 0xNIL factory",
   "devDependencies": {},
-  "dependencies": {
-  },
+  "dependencies": {},
   "scripts": {
-    "runTestrpc": "testrpc -a 20"
+    "testServer": "ganache-cli -a 20"
   }
-
 }

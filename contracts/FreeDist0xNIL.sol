@@ -1,4 +1,4 @@
-pragma solidity ^0.4.11;
+pragma solidity ^0.4.15;
 
 
 import 'zeppelin/math/SafeMath.sol';
@@ -10,210 +10,294 @@ import './Token0xNIL.sol';
 contract FreeDist0xNIL is Ownable {
   using SafeMath for uint;
 
-  event Initiated();
+  event PreDistStarted();
+
+  event DistStarted();
+
+  event PreDistEnded();
+
+  event DistEnded();
+
+  event TokenTradable();
 
   Token0xNIL public token;
 
-  uint public RATIO = 1000;
+  uint maxPerWallet;
 
-  uint public MAX = 10000;
+  address project;
 
-  uint public requests = 0;
+  address founders;
 
-  uint public initialDuration;
+  // pre dist
+
+  uint public preDuration;
+
+  uint public preStartBlock;
+
+  uint public preEndBlock;
+
+  // dist
+
+  uint public duration;
 
   uint public startBlock;
 
   uint public endBlock;
 
-  uint public tokenDistributed;
+  // numbers
 
   uint public totalParticipants;
 
-  address public artist;
+  uint public tokenDistributed;
 
-  uint public tipPercentage = 20;
+  bool public projectFoundersReserved;
 
-  // supporters
+  uint public projectReserve = 80;
 
-  uint8 public totalSupporters;
+  uint public foundersReserve = 20;
 
-  uint public totalSupportersRatios;
+  // states
 
-  event TokenToSupporters();
+  enum DistState {Inactive, PreDist, InBetween, Dist, Ended, Closed}
 
-  mapping (address => uint8) public supporters;
+  DistState currentState = DistState.Inactive;
 
-  mapping (uint8 => address) public supporterAddress;
-
-  // modifiers
-
-  modifier canInitiate() {
-    require(!isInitiated());
+  modifier onlyState(DistState expectedState) {
+    require(expectedState == currentState);
     _;
   }
 
-  modifier canChange() {
-    require(isInitiated() && !hasEnded());
+  modifier canRequest() {
+    require((currentState == DistState.PreDist && block.number >= preStartBlock && block.number <= preEndBlock) || (currentState == DistState.Dist && block.number >= startBlock && block.number <= endBlock));
     _;
   }
 
-  modifier canTip() {
-    require(hasEnded() && !isMintingFinished());
-    _;
+  function acceptingRequests() public constant returns (bool) {
+    return (currentState == DistState.PreDist && block.number >= preStartBlock && block.number <= preEndBlock) || (currentState == DistState.Dist && block.number >= startBlock && block.number <= endBlock);
   }
 
-  modifier canPay() {
-    require(isActive());
-    _;
-  }
-
-  function startDistribution(uint _startBlock, uint _duration, address _artist) onlyOwner canInitiate {
-    require(_startBlock >= block.number);
-    require(_artist != 0x0);
-    require(_duration > 0);
-
-    artist = _artist;
-    token = createTokenContract();
-    initialDuration = _duration;
-    startBlock = _startBlock;
-    endBlock = _startBlock + _duration;
-    Initiated();
-  }
-
-  function createTokenContract() internal returns (Token0xNIL) {
-    return new Token0xNIL();
-  }
-
-  function getTokensPerBlockNumber() public constant returns (uint) {
-    uint current = block.number;
-    if (!isActive()) {
-      return 0;
+  function getCurrentState() public constant returns (string) {
+    if (currentState == DistState.Inactive) {
+      return "Inactive";
+    }
+    else if (currentState == DistState.PreDist) {
+      return "PreDist";
+    }
+    else if (currentState == DistState.InBetween) {
+      return "InBetween";
+    }
+    else if (currentState == DistState.Dist) {
+      return "Dist";
+    }
+    else if (currentState == DistState.Ended) {
+      return "Ended";
     }
     else {
-      uint step = current - startBlock;
-      uint ratio = initialDuration / 3;
-      uint tokens = RATIO;
-      if (step < ratio) {
-        tokens += RATIO * 40 / 100;
-      }
-      else if (step < 2 * ratio) {
-        tokens += RATIO * 20 / 100;
-      }
-      return tokens;
+      return "Closed";
     }
   }
 
-  function addSupporter(address _supporter, uint8 _ratio) onlyOwner {
-    require(!isActive());
-    require(_ratio >= 0 && _ratio <= 5);
-    require(_supporter != 0x0);
+  function changeState(bytes32 newState) internal {
+    if (newState == "PreDist" && currentState == DistState.Inactive) {
+      currentState = DistState.PreDist;
+    }
+    else if (newState == "InBetween" && currentState == DistState.PreDist) {
+      currentState = DistState.InBetween;
+    }
+    else if (newState == "Dist" && currentState == DistState.InBetween) {
+      currentState = DistState.Dist;
+    }
+    else if (newState == "Ended" && currentState == DistState.Dist) {
+      currentState = DistState.Ended;
+    }
+    else if (newState == "Closed" && currentState == DistState.Ended) {
+      currentState = DistState.Closed;
+    }
+    else revert();
+  }
 
-    uint8 id;
-    uint8 previousRatio;
-    bool supporterExists = false;
-    for (uint8 i = 0; i < totalSupporters; i++) {
-      address supporter = supporterAddress[i];
-      if (supporter == _supporter) {
-        supporterExists = true;
-        id = i;
-        previousRatio = supporters[supporter];
-        break;
+  // collaborators
+
+  struct Permille {
+  uint permille;
+  bool active;
+  }
+
+  mapping (address => Permille) public permilles;
+
+  address[] public collaborators;
+
+  uint public maxPermille = 30;
+
+  bool public collaboratorsReserved;
+
+  function updateReserveCollaborator(address _collaborator, uint _permille) public onlyOwner {
+    require(currentState != DistState.Inactive);
+    require(!collaboratorsReserved);
+    require(_collaborator != 0x0 && _collaborator != project && _collaborator != founders);
+    require(_permille >= 0 && _permille <= maxPermille);
+
+    if (permilles[_collaborator].active == false) {
+      collaborators.push(_collaborator);
+    }
+    permilles[_collaborator] = Permille(_permille, true);
+  }
+
+  function reserveTokensCollaborators() public onlyOwner onlyState(DistState.Ended) {
+    require(!collaboratorsReserved);
+
+    if (collaborators.length > 0) {
+      for (uint i = 0; i < collaborators.length; i++) {
+        address collaborator = collaborators[i];
+        uint permille = permilles[collaborator].permille;
+        uint amount = tokenDistributed.mul(permille).div(1000);
+        token.mint(collaborator, amount);
       }
     }
-    if (!supporterExists) {
-      id = totalSupporters++;
-      supporterAddress[id] = _supporter;
-    }
-    supporters[_supporter] = _ratio;
-    totalSupportersRatios += _ratio - previousRatio;
+    collaboratorsReserved = true;
   }
 
-
-  event ChangeDuration(uint oldDuration, uint newDuration);
-
-  function changeDuration(uint _duration) onlyOwner canChange {
-    require(startBlock + _duration > block.number);
-    endBlock = startBlock + _duration;
-    ChangeDuration(startBlock + _duration, block.number);
-  }
+  // distribution
 
   function toNanoNIL(uint amount) internal constant returns (uint) {
-    return amount * 10 ** uint(token.decimals());
+    return amount.mul(10 ** uint(token.decimals()));
   }
 
-  function tipTheArtist() onlyOwner canTip {
-
-    uint amount = tokenDistributed * tipPercentage / 100;
-    if (amount > 0) {
-      token.mint(artist, toNanoNIL(amount));
-      for (uint8 i = 0; i < totalSupporters; i++) {
-        address supporter = supporterAddress[i];
-        amount = tokenDistributed * supporters[supporter] / 100;
-        token.mint(supporter, toNanoNIL(amount));
-      }
-      token.finishMinting();
-    }
+  function fromNanoNIL(uint amount) internal constant returns (uint) {
+    return amount.div(10 ** uint(token.decimals()));
   }
 
-  function() canPay payable {
+  // requiring NIL
+
+  function() public payable {
     getTokens();
   }
 
   // 0x7a0c39
-  function giveMeNILs() canPay payable {
+  function giveMeNILs() public payable {
     getTokens();
   }
 
-  function getTokens() internal {
+  function getTokens() internal canRequest {
     require(msg.sender != 0x0);
-    require(msg.value <= 1);
 
-    uint balance = tokenBalanceOf(msg.sender);
+    uint balance = token.balanceOf(msg.sender);
     if (balance == 0) {
       totalParticipants++;
     }
 
-    uint limit = toNanoNIL(MAX);
+    uint limit = toNanoNIL(maxPerWallet);
 
     require(balance < limit);
 
-    uint tokensPerBlockNumber = getTokensPerBlockNumber();
+    // any value is considered a donation to the project
+    project.transfer(msg.value);
 
-    uint factor = 10 ** uint(token.decimals());
-    if (balance > 0 && (balance / factor) + tokensPerBlockNumber > MAX) {
-      tokensPerBlockNumber = MAX - (balance / factor);
+    uint tokensToBeMinted = toNanoNIL(getTokensAmount());
+
+    if (balance > 0 && balance + tokensToBeMinted > limit) {
+      tokensToBeMinted = limit.sub(balance);
     }
 
-    token.mint(msg.sender, toNanoNIL(tokensPerBlockNumber));
-    tokenDistributed += tokensPerBlockNumber;
+    token.mint(msg.sender, tokensToBeMinted);
+
   }
 
-  function tokenBalanceOf(address who) public constant returns (uint){
-    require(isInitiated());
-    return token.balanceOf(who);
+  function endDists() public onlyOwner {
+    require((currentState == DistState.Dist && block.number > endBlock) || (currentState == DistState.PreDist && block.number > preEndBlock));
+    if (currentState == DistState.Dist) {
+      changeState("Ended");
+      tokenDistributed = token.totalSupply();
+      DistEnded();
+    }
+    else {
+      changeState("InBetween");
+      PreDistEnded();
+    }
+  }
+
+  function getTokensAmount() public canRequest constant returns (uint) {
+    uint amount = 1000;
+    uint current = block.number;
+    uint tokens;
+    if (currentState == DistState.PreDist) {
+      tokens = amount * 5;
+    }
+    else {
+      uint step = current - startBlock;
+      uint ratio = duration / 3;
+      tokens = amount;
+      if (step < ratio) {
+        tokens += amount * 40 / 100;
+      }
+      else if (step < 2 * ratio) {
+        tokens += amount * 20 / 100;
+      }
+    }
+    return tokens;
+  }
+
+
+  // phases
+
+  function startPreDistribution(uint _startBlock, uint _duration, address _project, address _founders) public onlyOwner onlyState(DistState.Inactive) {
+    require(_startBlock > block.number);
+    require(_duration > 0);
+    require(msg.sender != 0x0);
+    require(_project != 0x0);
+    require(_founders != 0x0);
+    changeState("PreDist");
+
+    maxPerWallet = 30000;
+    token = new Token0xNIL();
+    token.pause();
+    project = _project;
+    founders = _founders;
+    preDuration = _duration;
+    preStartBlock = _startBlock;
+    preEndBlock = _startBlock + _duration;
+
+    PreDistStarted();
+  }
+
+  function startDistribution(uint _startBlock, uint _duration) public onlyOwner onlyState(DistState.InBetween) {
+    require(_startBlock > block.number);
+    require(_duration > 0);
+    changeState("Dist");
+
+    maxPerWallet = 100000;
+    duration = _duration;
+    startBlock = _startBlock;
+    endBlock = _startBlock + _duration;
+
+    DistStarted();
+  }
+
+  function reserveTokensProjectAndFounders() public onlyOwner onlyState(DistState.Ended) {
+    require(!projectFoundersReserved);
+
+    uint amount = tokenDistributed.mul(projectReserve).div(100);
+    token.mint(project, amount);
+    amount = tokenDistributed.mul(foundersReserve).div(100);
+    token.mint(founders, amount);
+    projectFoundersReserved = true;
+  }
+
+  function unpauseAndFinishMinting() public onlyOwner onlyState(DistState.Ended) {
+    require(!token.mintingFinished());
+    require(projectFoundersReserved);
+    require(collaboratorsReserved);
+
+    token.unpause();
+    token.finishMinting();
+
+    changeState("Closed");
+    TokenTradable();
   }
 
   function totalSupply() public constant returns (uint){
-    require(isInitiated());
-    return token.totalSupply();
-  }
-
-  function hasEnded() public constant returns (bool) {
-    return block.number > endBlock;
-  }
-
-  function isActive() public constant returns (bool) {
-    return block.number >= startBlock && block.number <= endBlock;
-  }
-
-  function isInitiated() public constant returns (bool) {
-    return startBlock > 0;
-  }
-
-  function isMintingFinished() public constant returns (bool) {
-    require(isInitiated());
-    return token.mintingFinished();
+    require(currentState != DistState.Inactive);
+    return fromNanoNIL(token.totalSupply());
   }
 
 }
