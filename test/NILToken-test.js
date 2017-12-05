@@ -4,6 +4,8 @@ const NILToken = artifacts.require('./NILToken.sol')
 
 contract('NILToken', accounts => {
 
+  return;
+
   let token
 
   before(async () => {
