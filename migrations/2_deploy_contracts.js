@@ -1,12 +1,8 @@
-var Collaborators = artifacts.require("./Collaborators")
-var NILToken = artifacts.require("./NILToken")
-var FreeDistribution = artifacts.require("./FreeDistribution")
+var Token0xNIL = artifacts.require("./Token0xNIL")
+var FreeDist0xNIL = artifacts.require("./FreeDist0xNIL")
 
 module.exports = function(deployer) {
-  deployer.deploy(NILToken);
-  deployer.link(NILToken, Collaborators);
-  deployer.deploy(Collaborators);
-  deployer.link(Collaborators, FreeDistribution);
-  deployer.link(NILToken, FreeDistribution);
-  deployer.deploy(FreeDistribution);
+  deployer.deploy(Token0xNIL);
+  deployer.link(Token0xNIL, FreeDist0xNIL);
+  deployer.deploy(FreeDist0xNIL);
 };

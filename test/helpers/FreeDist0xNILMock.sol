@@ -1,10 +1,10 @@
 pragma solidity ^0.4.15;
 
 
-import '../../contracts/FreeDistribution.sol';
+import '../../contracts/FreeDist0xNIL.sol';
 
 
-contract FreeDistributionMock is FreeDistribution {
+contract FreeDist0xNILMock is FreeDist0xNIL {
 
   function getReserveCollaborator(address _collaborator) public constant returns (uint) {
     return permilles[_collaborator].permille;

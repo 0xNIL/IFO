@@ -5,7 +5,7 @@ import 'zeppelin/token/MintableToken.sol';
 import 'zeppelin/token/PausableToken.sol';
 
 
-contract NILToken is MintableToken, PausableToken {
+contract Token0xNIL is MintableToken, PausableToken {
 
   string public name = "0xNIL";
 

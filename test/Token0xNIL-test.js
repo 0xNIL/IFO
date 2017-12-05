@@ -1,15 +1,15 @@
 /* globals Promise */
 
-const NILToken = artifacts.require('./NILToken.sol')
+const Token0xNIL = artifacts.require('./Token0xNIL.sol')
 
-contract('NILToken', accounts => {
+contract('Token0xNIL', accounts => {
 
   return;
 
   let token
 
   before(async () => {
-    token = await NILToken.new()
+    token = await Token0xNIL.new()
   })
 
   it('should be able to mint', async () => {

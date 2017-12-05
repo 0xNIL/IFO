@@ -2,8 +2,8 @@
 
 const expectThrow = require('./helpers/expectThrow')
 
-const FreeDistribution = artifacts.require('./helpers/FreeDistributionMock.sol')
-const NILToken = artifacts.require('./NILToken.sol')
+const FreeDist0xNIL = artifacts.require('./helpers/FreeDist0xNILMock.sol')
+const Token0xNIL = artifacts.require('./Token0xNIL.sol')
 
 function toNanoNIL(amount) {
   return amount * 1e9
@@ -18,7 +18,7 @@ function logValue(x, convert) {
   else console.log(x.valueOf())
 }
 
-contract('FreeDistribution', accounts => {
+contract('FreeDist0xNIL', accounts => {
 
   let current
   let preStartBlock
@@ -33,7 +33,7 @@ contract('FreeDistribution', accounts => {
   let dist
 
   before(async () => {
-    dist = await FreeDistribution.new()
+    dist = await FreeDist0xNIL.new()
   })
 
   it('should be waiting to start', async () => {
@@ -64,7 +64,7 @@ contract('FreeDistribution', accounts => {
     preEndBlock = preStartBlock + preDuration
     await dist.startPreDistribution(preStartBlock, preDuration, project, founders)
 
-    token = NILToken.at(await dist.token())
+    token = Token0xNIL.at(await dist.token())
 
     assert.equal(await dist.getCurrentState(), 'PreDist')
     assert.equal(await dist.preEndBlock(), preEndBlock)

@@ -4,10 +4,10 @@ pragma solidity ^0.4.15;
 import 'zeppelin/math/SafeMath.sol';
 import 'zeppelin/ownership/Ownable.sol';
 
-import './NILToken.sol';
+import './Token0xNIL.sol';
 
 
-contract FreeDistribution is Ownable {
+contract FreeDist0xNIL is Ownable {
   using SafeMath for uint;
 
   event PreDistStarted();
@@ -20,7 +20,7 @@ contract FreeDistribution is Ownable {
 
   event TokenTradable();
 
-  NILToken public token;
+  Token0xNIL public token;
 
   uint maxPerWallet;
 
@@ -249,7 +249,7 @@ contract FreeDistribution is Ownable {
     changeState("PreDist");
 
     maxPerWallet = 30000;
-    token = new NILToken();
+    token = new Token0xNIL();
     token.pause();
     project = _project;
     founders = _founders;
