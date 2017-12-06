@@ -20,6 +20,8 @@ contract FreeDist0xNIL is Ownable {
 
   event TokenTradable();
 
+  event Log(uint _amount);
+
   Token0xNIL public token;
 
   uint maxPerWallet;
@@ -52,9 +54,9 @@ contract FreeDist0xNIL is Ownable {
 
   bool public projectFoundersReserved;
 
-  uint public projectReserve = 80;
+  uint public projectReserve = 35;
 
-  uint public foundersReserve = 20;
+  uint public foundersReserve = 10;
 
   // states
 
@@ -127,7 +129,11 @@ contract FreeDist0xNIL is Ownable {
 
   address[] public collaborators;
 
-  uint public maxPermille = 30;
+  uint public maxPermillePerCollaborator = 20;
+
+  uint public maxPermille = 50;
+
+  uint public totalPermilles;
 
   bool public collaboratorsReserved;
 
@@ -135,24 +141,38 @@ contract FreeDist0xNIL is Ownable {
     require(currentState != DistState.Inactive);
     require(!collaboratorsReserved);
     require(_collaborator != 0x0 && _collaborator != project && _collaborator != founders);
-    require(_permille >= 0 && _permille <= maxPermille);
+    require(_permille >= 0 && _permille <= maxPermillePerCollaborator);
 
     if (permilles[_collaborator].active == false) {
       collaborators.push(_collaborator);
     }
+    else {
+      uint previousPermille = permilles[_collaborator].permille;
+      totalPermilles = totalPermilles.sub(previousPermille);
+    }
+    totalPermilles = totalPermilles.add(_permille);
+    require(totalPermilles <= maxPermille);
+
     permilles[_collaborator] = Permille(_permille, true);
   }
 
   function reserveTokensCollaborators() public onlyOwner onlyState(DistState.Ended) {
     require(!collaboratorsReserved);
 
-    if (collaborators.length > 0) {
+    uint totalToCollaborators;
+    if (totalPermilles > 0) {
       for (uint i = 0; i < collaborators.length; i++) {
         address collaborator = collaborators[i];
         uint permille = permilles[collaborator].permille;
+        totalToCollaborators = totalToCollaborators.add(permille);
         uint amount = tokenDistributed.mul(permille).div(1000);
         token.mint(collaborator, amount);
       }
+    }
+    if (maxPermille > totalToCollaborators) {
+      // any unused token goes to founders
+      uint rest = maxPermille.sub(totalToCollaborators);
+      token.mint(founders, tokenDistributed.mul(rest).div(1000));
     }
     collaboratorsReserved = true;
   }
@@ -207,7 +227,7 @@ contract FreeDist0xNIL is Ownable {
     require((currentState == DistState.Dist && block.number > endBlock) || (currentState == DistState.PreDist && block.number > preEndBlock));
     if (currentState == DistState.Dist) {
       changeState("Ended");
-      tokenDistributed = token.totalSupply();
+      tokenDistributed = 2 * token.totalSupply();
       DistEnded();
     }
     else {
