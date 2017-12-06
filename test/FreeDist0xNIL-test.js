@@ -202,6 +202,10 @@ contract('FreeDist0xNIL', accounts => {
     assert.equal(await dist.numberOfCollaborators(), 4)
   })
 
+  it('should return 0 token ', async () => {
+    assert.equal(await dist.getTokensAmount(), 0)
+  })
+
   it('should have token paused', async () => {
     assert.isTrue(await token.paused())
   })

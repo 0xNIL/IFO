@@ -10,14 +10,6 @@ import './Token0xNIL.sol';
 contract FreeDist0xNIL is Ownable {
   using SafeMath for uint;
 
-  event PreDistInitiated();
-
-  event DistStarted();
-
-  event PreDistEnded();
-
-  event DistEnded();
-
   event TokenTradable();
 
   event Log(uint _amount);
@@ -62,11 +54,6 @@ contract FreeDist0xNIL is Ownable {
 
   modifier onlyState(bytes32 expectedState) {
     require(expectedState == currentState());
-    _;
-  }
-
-  modifier canRequest() {
-    require(currentState() == "PreDist" || currentState() == "Dist");
     _;
   }
 
@@ -180,7 +167,8 @@ contract FreeDist0xNIL is Ownable {
     getTokens();
   }
 
-  function getTokens() internal canRequest {
+  function getTokens() internal {
+    require(currentState() == "PreDist" || currentState() == "Dist");
     require(msg.sender != 0x0);
 
     uint balance = token.balanceOf(msg.sender);
@@ -205,14 +193,14 @@ contract FreeDist0xNIL is Ownable {
 
   }
 
-  function getTokensAmount() public canRequest constant returns (uint) {
+  function getTokensAmount() public constant returns (uint) {
     uint amount = 1000;
     uint current = block.number;
     uint tokens;
     if (currentState() == "PreDist") {
       tokens = amount * 5;
     }
-    else {
+    else if (currentState() == "Dist"){
       uint step = current - startBlock;
       uint ratio = duration / 3;
       tokens = amount;
@@ -244,8 +232,6 @@ contract FreeDist0xNIL is Ownable {
     preDuration = _duration;
     preStartBlock = _startBlock;
     preEndBlock = _startBlock + _duration;
-
-    PreDistInitiated();
   }
 
   function startDistribution(uint _startBlock, uint _duration) public onlyOwner onlyState("InBetween") {
@@ -256,8 +242,6 @@ contract FreeDist0xNIL is Ownable {
     duration = _duration;
     startBlock = _startBlock;
     endBlock = _startBlock + _duration;
-
-    DistStarted();
   }
 
   function reserveTokensProjectAndFounders() public onlyOwner onlyState("Ended") {
@@ -273,14 +257,11 @@ contract FreeDist0xNIL is Ownable {
   }
 
   function unpauseAndFinishMinting() public onlyOwner onlyState("Ended") {
-    require(!token.mintingFinished());
     require(projectFoundersReserved);
     require(collaboratorsReserved);
 
     token.unpause();
     token.finishMinting();
-
-    TokenTradable();
   }
 
   function totalSupply() public constant returns (uint){
