@@ -10,7 +10,7 @@ import './Token0xNIL.sol';
 contract FreeDist0xNIL is Ownable {
   using SafeMath for uint;
 
-  event PreDistStarted();
+  event PreDistInitiated();
 
   event DistStarted();
 
@@ -50,7 +50,7 @@ contract FreeDist0xNIL is Ownable {
 
   uint public totalParticipants;
 
-  uint public tokenDistributed;
+  uint public tokenSupply;
 
   bool public projectFoundersReserved;
 
@@ -60,62 +60,43 @@ contract FreeDist0xNIL is Ownable {
 
   // states
 
-  enum DistState {Inactive, PreDist, InBetween, Dist, Ended, Closed}
-
-  DistState currentState = DistState.Inactive;
-
-  modifier onlyState(DistState expectedState) {
-    require(expectedState == currentState);
+  modifier onlyState(bytes32 expectedState) {
+    require(expectedState == currentState());
     _;
   }
 
   modifier canRequest() {
-    require((currentState == DistState.PreDist && block.number >= preStartBlock && block.number <= preEndBlock) || (currentState == DistState.Dist && block.number >= startBlock && block.number <= endBlock));
+    require(currentState() == "PreDist" || currentState() == "Dist");
     _;
   }
 
-  function acceptingRequests() public constant returns (bool) {
-    return (currentState == DistState.PreDist && block.number >= preStartBlock && block.number <= preEndBlock) || (currentState == DistState.Dist && block.number >= startBlock && block.number <= endBlock);
-  }
+  function currentState() public constant returns (bytes32) {
+    uint bn = block.number;
 
-  function getCurrentState() public constant returns (string) {
-    if (currentState == DistState.Inactive) {
+    if (preStartBlock == 0) {
       return "Inactive";
     }
-    else if (currentState == DistState.PreDist) {
+    else if (bn < preStartBlock) {
+      return "PreDistInitiated";
+    }
+    else if (bn <= preEndBlock) {
       return "PreDist";
     }
-    else if (currentState == DistState.InBetween) {
+    else if (startBlock == 0) {
       return "InBetween";
     }
-    else if (currentState == DistState.Dist) {
+    else if (bn < startBlock) {
+      return "DistInitiated";
+    }
+    else if (bn <= endBlock) {
       return "Dist";
     }
-    else if (currentState == DistState.Ended) {
+    else if (!token.mintingFinished()) {
       return "Ended";
     }
     else {
       return "Closed";
     }
-  }
-
-  function changeState(bytes32 newState) internal {
-    if (newState == "PreDist" && currentState == DistState.Inactive) {
-      currentState = DistState.PreDist;
-    }
-    else if (newState == "InBetween" && currentState == DistState.PreDist) {
-      currentState = DistState.InBetween;
-    }
-    else if (newState == "Dist" && currentState == DistState.InBetween) {
-      currentState = DistState.Dist;
-    }
-    else if (newState == "Ended" && currentState == DistState.Dist) {
-      currentState = DistState.Ended;
-    }
-    else if (newState == "Closed" && currentState == DistState.Ended) {
-      currentState = DistState.Closed;
-    }
-    else revert();
   }
 
   // collaborators
@@ -138,7 +119,7 @@ contract FreeDist0xNIL is Ownable {
   bool public collaboratorsReserved;
 
   function updateReserveCollaborator(address _collaborator, uint _permille) public onlyOwner {
-    require(currentState != DistState.Inactive);
+    require(currentState() != "Inactive");
     require(!collaboratorsReserved);
     require(_collaborator != 0x0 && _collaborator != project && _collaborator != founders);
     require(_permille >= 0 && _permille <= maxPermillePerCollaborator);
@@ -156,7 +137,8 @@ contract FreeDist0xNIL is Ownable {
     permilles[_collaborator] = Permille(_permille, true);
   }
 
-  function reserveTokensCollaborators() public onlyOwner onlyState(DistState.Ended) {
+  function reserveTokensCollaborators() public onlyOwner onlyState("Ended") {
+    require(projectFoundersReserved);
     require(!collaboratorsReserved);
 
     uint totalToCollaborators;
@@ -165,14 +147,14 @@ contract FreeDist0xNIL is Ownable {
         address collaborator = collaborators[i];
         uint permille = permilles[collaborator].permille;
         totalToCollaborators = totalToCollaborators.add(permille);
-        uint amount = tokenDistributed.mul(permille).div(1000);
+        uint amount = tokenSupply.mul(permille).div(1000);
         token.mint(collaborator, amount);
       }
     }
     if (maxPermille > totalToCollaborators) {
       // any unused token goes to founders
       uint rest = maxPermille.sub(totalToCollaborators);
-      token.mint(founders, tokenDistributed.mul(rest).div(1000));
+      token.mint(founders, tokenSupply.mul(rest).div(1000));
     }
     collaboratorsReserved = true;
   }
@@ -223,24 +205,11 @@ contract FreeDist0xNIL is Ownable {
 
   }
 
-  function endDists() public onlyOwner {
-    require((currentState == DistState.Dist && block.number > endBlock) || (currentState == DistState.PreDist && block.number > preEndBlock));
-    if (currentState == DistState.Dist) {
-      changeState("Ended");
-      tokenDistributed = 2 * token.totalSupply();
-      DistEnded();
-    }
-    else {
-      changeState("InBetween");
-      PreDistEnded();
-    }
-  }
-
   function getTokensAmount() public canRequest constant returns (uint) {
     uint amount = 1000;
     uint current = block.number;
     uint tokens;
-    if (currentState == DistState.PreDist) {
+    if (currentState() == "PreDist") {
       tokens = amount * 5;
     }
     else {
@@ -260,13 +229,12 @@ contract FreeDist0xNIL is Ownable {
 
   // phases
 
-  function startPreDistribution(uint _startBlock, uint _duration, address _project, address _founders) public onlyOwner onlyState(DistState.Inactive) {
+  function startPreDistribution(uint _startBlock, uint _duration, address _project, address _founders) public onlyOwner onlyState("Inactive") {
     require(_startBlock > block.number);
     require(_duration > 0);
     require(msg.sender != 0x0);
     require(_project != 0x0);
     require(_founders != 0x0);
-    changeState("PreDist");
 
     maxPerWallet = 30000;
     token = new Token0xNIL();
@@ -277,13 +245,12 @@ contract FreeDist0xNIL is Ownable {
     preStartBlock = _startBlock;
     preEndBlock = _startBlock + _duration;
 
-    PreDistStarted();
+    PreDistInitiated();
   }
 
-  function startDistribution(uint _startBlock, uint _duration) public onlyOwner onlyState(DistState.InBetween) {
+  function startDistribution(uint _startBlock, uint _duration) public onlyOwner onlyState("InBetween") {
     require(_startBlock > block.number);
     require(_duration > 0);
-    changeState("Dist");
 
     maxPerWallet = 100000;
     duration = _duration;
@@ -293,17 +260,19 @@ contract FreeDist0xNIL is Ownable {
     DistStarted();
   }
 
-  function reserveTokensProjectAndFounders() public onlyOwner onlyState(DistState.Ended) {
+  function reserveTokensProjectAndFounders() public onlyOwner onlyState("Ended") {
     require(!projectFoundersReserved);
 
-    uint amount = tokenDistributed.mul(projectReserve).div(100);
+    tokenSupply = 2 * token.totalSupply();
+
+    uint amount = tokenSupply.mul(projectReserve).div(100);
     token.mint(project, amount);
-    amount = tokenDistributed.mul(foundersReserve).div(100);
+    amount = tokenSupply.mul(foundersReserve).div(100);
     token.mint(founders, amount);
     projectFoundersReserved = true;
   }
 
-  function unpauseAndFinishMinting() public onlyOwner onlyState(DistState.Ended) {
+  function unpauseAndFinishMinting() public onlyOwner onlyState("Ended") {
     require(!token.mintingFinished());
     require(projectFoundersReserved);
     require(collaboratorsReserved);
@@ -311,12 +280,11 @@ contract FreeDist0xNIL is Ownable {
     token.unpause();
     token.finishMinting();
 
-    changeState("Closed");
     TokenTradable();
   }
 
   function totalSupply() public constant returns (uint){
-    require(currentState != DistState.Inactive);
+    require(currentState() != "Inactive");
     return fromNanoNIL(token.totalSupply());
   }
 
