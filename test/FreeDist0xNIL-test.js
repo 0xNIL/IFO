@@ -95,12 +95,12 @@ contract('FreeDist0xNIL', accounts => {
 
   it('should add a new collaborators accounts[8] and change accounts[7] permille', async () => {
     await dist.updateReserveCollaborator(accounts[7], 5)
-    await dist.updateReserveCollaborator(accounts[8], 25)
+    await dist.updateReserveCollaborator(accounts[8], 15)
 
     assert.equal(await dist.getCollaboratorAddressByIndex(1), accounts[7])
     assert.equal(await dist.getCollaboratorAddressByIndex(2), accounts[8])
     assert.equal(await dist.getReserveCollaborator(accounts[7]), 5)
-    assert.equal(await dist.getReserveCollaborator(accounts[8]), 25)
+    assert.equal(await dist.getReserveCollaborator(accounts[8]), 15)
   })
 
   it('should mine until reaching the preStartBlock and mint 5000 tokens', async () => {
@@ -314,7 +314,7 @@ contract('FreeDist0xNIL', accounts => {
   it('should end the distribution', async () => {
     await dist.endDists()
     assert.equal(await dist.getCurrentState(), "Ended")
-    assert.equal(await dist.tokenDistributed(), toNanoNIL(256600))
+    assert.equal(await dist.tokenDistributed(), toNanoNIL(513200))
   })
 
   it('should verify minting has not finished', async () => {
@@ -324,9 +324,9 @@ contract('FreeDist0xNIL', accounts => {
   it('should reserve the tokens to project and founders', async () => {
     await dist.reserveTokensProjectAndFounders()
 
-    assert.equal(await token.balanceOf(project), toNanoNIL(205280))
-    assert.equal(await token.balanceOf(founders), toNanoNIL(51320))
     assert.isTrue(await dist.projectFoundersReserved())
+    assert.equal(await token.balanceOf(project), toNanoNIL(179620))
+    assert.equal(await token.balanceOf(founders), toNanoNIL(51320))
   })
 
   it('should throw if trying to close the distribution', async () => {
@@ -335,13 +335,15 @@ contract('FreeDist0xNIL', accounts => {
 
   it('should reserve the tokens to collaborators', async () => {
 
+    let tokenDistributed = await dist.tokenDistributed()
     await dist.reserveTokensCollaborators()
 
-    assert.equal(await token.balanceOf(accounts[6]), toNanoNIL(2566))
-    assert.equal(await token.balanceOf(accounts[7]), toNanoNIL(1283))
-    assert.equal(await token.balanceOf(accounts[8]), toNanoNIL(6415))
-    assert.equal(await token.balanceOf(accounts[9]), toNanoNIL(1283))
     assert.isTrue(await dist.collaboratorsReserved())
+    assert.equal(await token.balanceOf(accounts[6]), tokenDistributed * 10 / 1000)
+    assert.equal(await token.balanceOf(accounts[7]), tokenDistributed * 5 / 1000)
+    assert.equal(await token.balanceOf(accounts[8]), tokenDistributed * 15 / 1000)
+    assert.equal(await token.balanceOf(accounts[9]), tokenDistributed * 5 / 1000)
+    assert.equal(await token.balanceOf(founders), tokenDistributed * 115 / 1000)
   })
 
   it('should throw if trying to reserve tokens again to collaborators', async () => {
