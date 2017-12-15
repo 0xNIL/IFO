@@ -162,7 +162,7 @@ contract FreeDist0xNIL is Ownable {
     getTokens();
   }
 
-  // 0x7a0c39
+  // 0x7a0c396d
   function giveMeNILs() public payable {
     getTokens();
   }
