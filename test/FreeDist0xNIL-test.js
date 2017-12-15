@@ -14,32 +14,40 @@ function fromNanoNIL(amount) {
 }
 
 function logValue(x, convert) {
-  if (convert) console.log(fromNanoNIL(x.valueOf()))
-  else console.log(x.valueOf())
+  x = x.valueOf()
+  console.log(convert ? fromNanoNIL(x) : x)
 }
 
 contract('FreeDist0xNIL', accounts => {
 
   let current
+
   let preStartBlock
   let preEndBlock
   let preDuration
+
   let startBlock
   let endBlock
   let duration
+
   let project = accounts[5]
   let founders = accounts[1]
+
   let token
   let dist
+
+  async function isCurrentState(expectedState) {
+    let currentState = (await dist.getCurrentState()).valueOf()
+    return expectedState == currentState
+  }
 
   before(async () => {
     dist = await FreeDist0xNIL.new()
   })
 
-  it('should be waiting to start', async () => {
-    assert.equal(await dist.getCurrentState(), "Inactive")
+  it('should be inactive', async () => {
+    assert.isTrue(await isCurrentState('Inactive'))
   })
-
 
   it('should throw adding a collaborator when Inactive', async () => {
     await expectThrow(dist.updateReserveCollaborator(accounts[6], 15))
@@ -66,7 +74,7 @@ contract('FreeDist0xNIL', accounts => {
 
     token = Token0xNIL.at(await dist.token())
 
-    assert.equal(await dist.getCurrentState(), 'PreDist')
+    assert.isTrue(await isCurrentState('PreDistInitiated'))
     assert.equal(await dist.preEndBlock(), preEndBlock)
   })
 
@@ -87,12 +95,6 @@ contract('FreeDist0xNIL', accounts => {
     assert.equal(await dist.numberOfCollaborators(), 2)
   })
 
-  // it('should throw if a not-owner account try to add collaborators', async () => {
-  //   await expectThrow(dist.updateReserveCollaborator(accounts[6], 10, {from: accounts[2]}))
-  // })
-
-
-
   it('should add a new collaborators accounts[8] and change accounts[7] permille', async () => {
     await dist.updateReserveCollaborator(accounts[7], 5)
     await dist.updateReserveCollaborator(accounts[8], 15)
@@ -111,6 +113,7 @@ contract('FreeDist0xNIL', accounts => {
         await dist.sendTransaction({from: accounts[0], value: 0})
         return await dist.acceptingRequests()
       } catch (err) {
+        assert.isTrue(await isCurrentState('PreDistInitiated'))
         return await iterate()
       }
     }
@@ -187,13 +190,6 @@ contract('FreeDist0xNIL', accounts => {
     await expectThrow(dist.sendTransaction({from: accounts[10], value: 0}))
   })
 
-  it('should end the pre distribution', async () => {
-    await dist.endDists()
-
-    assert.equal(await dist.getCurrentState(), "InBetween")
-
-  })
-
   it('should throw if state is InBetween is passed', async () => {
     await expectThrow(dist.sendTransaction({from: accounts[4], value: 0}))
   })
@@ -204,6 +200,10 @@ contract('FreeDist0xNIL', accounts => {
     assert.equal(await dist.getCollaboratorAddressByIndex(3), accounts[9])
     assert.equal(await dist.getReserveCollaborator(accounts[9]), 5)
     assert.equal(await dist.numberOfCollaborators(), 4)
+  })
+
+  it('should return 0 token ', async () => {
+    assert.equal(await dist.getTokensAmount(), 0)
   })
 
   it('should have token paused', async () => {
@@ -221,7 +221,7 @@ contract('FreeDist0xNIL', accounts => {
     endBlock = startBlock + duration
     await dist.startDistribution(startBlock, duration)
 
-    assert.equal(await dist.getCurrentState(), 'Dist')
+    assert.isTrue(await isCurrentState('DistInitiated'))
     assert.equal(await dist.endBlock(), endBlock)
   })
 
@@ -295,10 +295,6 @@ contract('FreeDist0xNIL', accounts => {
     await expectThrow(dist.sendTransaction({from: accounts[4], value: 0}))
   })
 
-  it('should throw trying to end the distribution before > endBlock', async () => {
-    await expectThrow(dist.endDists())
-  })
-
   it('should reach the end of the distribution', async () => {
     // basically we force eth to mine to reach the endBlock
 
@@ -311,22 +307,18 @@ contract('FreeDist0xNIL', accounts => {
     }
   })
 
-  it('should end the distribution', async () => {
-    await dist.endDists()
-    assert.equal(await dist.getCurrentState(), "Ended")
-    assert.equal(await dist.tokenDistributed(), toNanoNIL(513200))
-  })
-
   it('should verify minting has not finished', async () => {
     assert.equal(await token.mintingFinished(), false)
   })
 
   it('should reserve the tokens to project and founders', async () => {
+
     await dist.reserveTokensProjectAndFounders()
+    let tokenSupply = await dist.tokenSupply()
 
     assert.isTrue(await dist.projectFoundersReserved())
-    assert.equal(await token.balanceOf(project), toNanoNIL(179620))
-    assert.equal(await token.balanceOf(founders), toNanoNIL(51320))
+    assert.equal(await token.balanceOf(project), tokenSupply * 35 / 100)
+    assert.equal(await token.balanceOf(founders), tokenSupply * 10 / 100)
   })
 
   it('should throw if trying to close the distribution', async () => {
@@ -335,15 +327,15 @@ contract('FreeDist0xNIL', accounts => {
 
   it('should reserve the tokens to collaborators', async () => {
 
-    let tokenDistributed = await dist.tokenDistributed()
+    let tokenSupply = await dist.tokenSupply()
     await dist.reserveTokensCollaborators()
 
     assert.isTrue(await dist.collaboratorsReserved())
-    assert.equal(await token.balanceOf(accounts[6]), tokenDistributed * 10 / 1000)
-    assert.equal(await token.balanceOf(accounts[7]), tokenDistributed * 5 / 1000)
-    assert.equal(await token.balanceOf(accounts[8]), tokenDistributed * 15 / 1000)
-    assert.equal(await token.balanceOf(accounts[9]), tokenDistributed * 5 / 1000)
-    assert.equal(await token.balanceOf(founders), tokenDistributed * 115 / 1000)
+    assert.equal(await token.balanceOf(accounts[6]), tokenSupply * 10 / 1000)
+    assert.equal(await token.balanceOf(accounts[7]), tokenSupply * 5 / 1000)
+    assert.equal(await token.balanceOf(accounts[8]), tokenSupply * 15 / 1000)
+    assert.equal(await token.balanceOf(accounts[9]), tokenSupply * 5 / 1000)
+    assert.equal(await token.balanceOf(founders), tokenSupply * 115 / 1000)
   })
 
   it('should throw if trying to reserve tokens again to collaborators', async () => {
@@ -354,7 +346,7 @@ contract('FreeDist0xNIL', accounts => {
     await dist.unpauseAndFinishMinting()
     assert.isFalse(await token.paused())
     assert.isTrue(await token.mintingFinished())
-    assert.equal(await dist.getCurrentState(), "Closed")
+    assert.isTrue(await isCurrentState('Closed'))
   })
 
   it('should throw an error trying to restart the distribution', async () => {
