@@ -23,7 +23,7 @@ contract IFOSecondRoundMock is IFOSecondRound {
   }
 
   function acceptingRequests() public constant returns (bool) {
-    return (currentState() == "PreDist" || currentState() == "Dist");
+    return (currentState() == "Dist");
   }
 
   function getCurrentState() public constant returns (string) {

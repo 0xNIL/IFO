@@ -163,8 +163,6 @@ contract IFOSecondRound is Ownable {
     collaboratorsReserved = true;
   }
 
-  // distribution
-
   function _toNanoNIL(uint amount) internal constant returns (uint) {
     return amount.mul(10 ** uint(token.decimals()));
   }
@@ -172,8 +170,6 @@ contract IFOSecondRound is Ownable {
   function _fromNanoNIL(uint amount) internal constant returns (uint) {
     return amount.div(10 ** uint(token.decimals()));
   }
-
-  // requiring NIL
 
   function() public payable {
     _getTokens();

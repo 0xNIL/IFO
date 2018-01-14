@@ -10,7 +10,7 @@ contract IFOFirstRoundMock is IFOFirstRound {
   }
 
   function acceptingRequests() public constant returns (bool) {
-    return (currentState() == "PreDist" || currentState() == "Dist");
+    return (currentState() == "PreDist");
   }
 
   function getCurrentState() public constant returns (string) {
