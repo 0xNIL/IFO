@@ -1,34 +1,39 @@
-pragma solidity ^0.4.15;
+pragma solidity ^0.4.18;
 
 
 import 'zeppelin/math/SafeMath.sol';
 import 'zeppelin/ownership/Ownable.sol';
 
-import './Token0xNIL.sol';
+import './NILToken.sol';
+
+contract IFOFirstRoundAbstract is Ownable{
+  NILToken public token;
+  uint public me;
+  address public project;
+  address public founders;
+  uint public totalParticipants;
+  uint public tokenSupply;
+  uint public baseAmount;
+}
 
 
-contract FreeDist0xNIL is Ownable {
+contract IFOSecondRound is Ownable {
   using SafeMath for uint;
 
   event TokenTradable();
 
   event Log(uint _amount);
 
-  Token0xNIL public token;
+  NILToken public token;
+//  IFOFirstRound internal firstRound;
 
-  uint maxPerWallet;
+  uint maxPerWallet = 100000;
 
-  address project;
+  address public project;
 
-  address founders;
+  address public founders;
 
-  // pre dist
-
-  uint public preDuration;
-
-  uint public preStartBlock;
-
-  uint public preEndBlock;
+  uint public baseAmount;
 
   // dist
 
@@ -44,11 +49,29 @@ contract FreeDist0xNIL is Ownable {
 
   uint public tokenSupply;
 
+  uint public initialTotalSupply;
+
   bool public projectFoundersReserved;
 
   uint public projectReserve = 35;
 
   uint public foundersReserve = 10;
+
+  function getValuesFromFirstRound(address _firstRound, address _token) public onlyOwner  onlyState("Waiting"){
+
+    IFOFirstRoundAbstract firstRound = IFOFirstRoundAbstract(_firstRound);
+    token = NILToken(_token);
+
+    require(firstRound.me() == 231);
+    require(token.me() == 167);
+
+    project = firstRound.project();
+    founders = firstRound.founders();
+    baseAmount = firstRound.baseAmount();
+    totalParticipants = firstRound.totalParticipants();
+    initialTotalSupply = token.totalSupply();
+  }
+
 
   // states
 
@@ -60,14 +83,8 @@ contract FreeDist0xNIL is Ownable {
   function currentState() public constant returns (bytes32) {
     uint bn = block.number;
 
-    if (preStartBlock == 0) {
-      return "Inactive";
-    }
-    else if (bn < preStartBlock) {
-      return "PreDistInitiated";
-    }
-    else if (bn <= preEndBlock) {
-      return "PreDist";
+    if (baseAmount == 0) {
+      return "Waiting";
     }
     else if (startBlock == 0) {
       return "InBetween";
@@ -89,11 +106,11 @@ contract FreeDist0xNIL is Ownable {
   // collaborators
 
   struct Permille {
-  uint permille;
-  bool active;
+    uint permille;
+    bool active;
   }
 
-  mapping (address => Permille) public permilles;
+  mapping(address => Permille) public permilles;
 
   address[] public collaborators;
 
@@ -106,7 +123,7 @@ contract FreeDist0xNIL is Ownable {
   bool public collaboratorsReserved;
 
   function updateReserveCollaborator(address _collaborator, uint _permille) public onlyOwner {
-    require(currentState() != "Inactive");
+    require(currentState() != "Ended" && currentState() != "Closed");
     require(!collaboratorsReserved);
     require(_collaborator != 0x0 && _collaborator != project && _collaborator != founders);
     require(_permille >= 0 && _permille <= maxPermillePerCollaborator);
@@ -146,28 +163,24 @@ contract FreeDist0xNIL is Ownable {
     collaboratorsReserved = true;
   }
 
-  // distribution
-
-  function toNanoNIL(uint amount) internal constant returns (uint) {
+  function _toNanoNIL(uint amount) internal constant returns (uint) {
     return amount.mul(10 ** uint(token.decimals()));
   }
 
-  function fromNanoNIL(uint amount) internal constant returns (uint) {
+  function _fromNanoNIL(uint amount) internal constant returns (uint) {
     return amount.div(10 ** uint(token.decimals()));
   }
 
-  // requiring NIL
-
   function() public payable {
-    getTokens();
+    _getTokens();
   }
 
   // 0x7a0c396d
   function giveMeNILs() public payable {
-    getTokens();
+    _getTokens();
   }
 
-  function getTokens() internal {
+  function _getTokens() internal {
     require(currentState() == "PreDist" || currentState() == "Dist");
     require(msg.sender != 0x0);
 
@@ -176,14 +189,14 @@ contract FreeDist0xNIL is Ownable {
       totalParticipants++;
     }
 
-    uint limit = toNanoNIL(maxPerWallet);
+    uint limit = _toNanoNIL(maxPerWallet);
 
     require(balance < limit);
 
     // any value is considered a donation to the project
     project.transfer(msg.value);
 
-    uint tokensToBeMinted = toNanoNIL(getTokensAmount());
+    uint tokensToBeMinted = _toNanoNIL(getTokensAmount());
 
     if (balance > 0 && balance + tokensToBeMinted > limit) {
       tokensToBeMinted = limit.sub(balance);
@@ -194,13 +207,10 @@ contract FreeDist0xNIL is Ownable {
   }
 
   function getTokensAmount() public constant returns (uint) {
-    uint amount = 1000;
+    uint amount = baseAmount;
     uint current = block.number;
     uint tokens;
-    if (currentState() == "PreDist") {
-      tokens = amount * 5;
-    }
-    else if (currentState() == "Dist"){
+    if (currentState() == "Dist") {
       uint step = current - startBlock;
       uint ratio = duration / 3;
       tokens = amount;
@@ -215,25 +225,6 @@ contract FreeDist0xNIL is Ownable {
   }
 
 
-  // phases
-
-  function startPreDistribution(uint _startBlock, uint _duration, address _project, address _founders) public onlyOwner onlyState("Inactive") {
-    require(_startBlock > block.number);
-    require(_duration > 0);
-    require(msg.sender != 0x0);
-    require(_project != 0x0);
-    require(_founders != 0x0);
-
-    maxPerWallet = 30000;
-    token = new Token0xNIL();
-    token.pause();
-    project = _project;
-    founders = _founders;
-    preDuration = _duration;
-    preStartBlock = _startBlock;
-    preEndBlock = _startBlock + _duration;
-  }
-
   function startDistribution(uint _startBlock, uint _duration) public onlyOwner onlyState("InBetween") {
     require(_startBlock > block.number);
     require(_duration > 0);
@@ -247,7 +238,7 @@ contract FreeDist0xNIL is Ownable {
   function reserveTokensProjectAndFounders() public onlyOwner onlyState("Ended") {
     require(!projectFoundersReserved);
 
-    tokenSupply = 2 * token.totalSupply();
+    tokenSupply = 2 * (token.totalSupply() - initialTotalSupply);
 
     uint amount = tokenSupply.mul(projectReserve).div(100);
     token.mint(project, amount);
@@ -266,7 +257,7 @@ contract FreeDist0xNIL is Ownable {
 
   function totalSupply() public constant returns (uint){
     require(currentState() != "Inactive");
-    return fromNanoNIL(token.totalSupply());
+    return _fromNanoNIL(token.totalSupply());
   }
 
 }
