@@ -1,10 +1,10 @@
-pragma solidity ^0.4.15;
+pragma solidity ^0.4.18;
 
 
-import '../../contracts/FreeDist0xNIL.sol';
+import '../IFOSecondRound.sol';
 
 
-contract FreeDist0xNILMock is FreeDist0xNIL {
+contract IFOSecondRoundMock is IFOSecondRound {
 
   function getReserveCollaborator(address _collaborator) public constant returns (uint) {
     return permilles[_collaborator].permille;

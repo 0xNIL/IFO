@@ -1,15 +1,14 @@
 /* globals Promise */
 
-const Token0xNIL = artifacts.require('./Token0xNIL.sol')
+const assertRevert = require('./helpers/assertRevert')
+const NILToken = artifacts.require('./NILToken.sol')
 
-contract('Token0xNIL', accounts => {
-
-  return;
+contract('NILToken', accounts => {
 
   let token
 
   before(async () => {
-    token = await Token0xNIL.new()
+    token = await NILToken.new()
   })
 
   it('should be able to mint', async () => {
@@ -36,11 +35,7 @@ contract('Token0xNIL', accounts => {
   })
 
   it('should throw an error trying to transfer 2 from account 0 to account 1', async () => {
-    try {
-      await token.transfer(accounts[1], 2)
-    } catch(err) {
-      assert(/revert/.test(err.message))
-    }
+    await assertRevert(token.transfer(accounts[1], 2))
   })
 
   it('should unpause the transfers', async () => {
@@ -59,11 +54,7 @@ contract('Token0xNIL', accounts => {
   })
 
   it('should be unable to pause after minting finished', async () => {
-    try {
-      await token.pause()
-    } catch (err) {
-      assert(/revert/.test(err.message))
-    }
+    await assertRevert(token.pause())
   })
 
 })
