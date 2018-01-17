@@ -85,7 +85,7 @@ contract IFOFirstRound is Ownable {
 
   // requiring NIL
 
-  function() public payable {
+  function() external payable {
     _getTokens();
   }
 
@@ -107,9 +107,6 @@ contract IFOFirstRound is Ownable {
 
     require(balance < limit);
 
-    // any value is considered a donation to the project
-    project.transfer(msg.value);
-
     uint tokensToBeMinted = _toNanoNIL(getTokensAmount());
 
     if (balance > 0 && balance + tokensToBeMinted > limit) {
@@ -130,7 +127,7 @@ contract IFOFirstRound is Ownable {
 
   function startPreDistribution(uint _startBlock, uint _duration, address _project, address _founders) public onlyOwner onlyState("Inactive") {
     require(_startBlock > block.number);
-    require(_duration > 0);
+    require(_duration > 0 && _duration < 30000);
     require(msg.sender != address(0));
     require(_project != address(0));
     require(_founders != address(0));
@@ -152,6 +149,10 @@ contract IFOFirstRound is Ownable {
     amount = tokenSupply.mul(foundersReserve).div(100);
     token.mint(founders, amount);
     projectFoundersReserved = true;
+
+    if (this.balance > 0) {
+      project.transfer(this.balance);
+    }
   }
 
   function totalSupply() public constant returns (uint){

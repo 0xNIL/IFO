@@ -69,6 +69,7 @@ contract('IFOFirstRound', accounts => {
     assert.equal(await firstRound.preEndBlock(), preEndBlock)
   })
 
+
   it('should throw sending ethers too early', async () => {
 
     await assertRevert(firstRound.sendTransaction({from: accounts[0], value: 0}))
@@ -99,13 +100,9 @@ contract('IFOFirstRound', accounts => {
     assert.equal(await token.balanceOf(founders), 0)
   })
 
-  it('should receive a donation from account 2 during the request', async () => {
+  it('should set a donation from account 2 during the request', async () => {
 
-    const balanceBefore = (await web3.eth.getBalance(project)).valueOf()
-    await firstRound.sendTransaction({from: accounts[2], value: web3.toWei(1, 'ether')})
-    const balanceAfter = (await web3.eth.getBalance(project)).valueOf()
-
-    assert.equal(web3.fromWei(balanceAfter.valueOf() - balanceBefore.valueOf(), 'ether'), 1)
+    await firstRound.sendTransaction({from: accounts[2], value: web3.toWei(3, 'ether')})
     assert.equal(await token.balanceOf(accounts[2]), toNanoNIL(10000))
   })
 
@@ -184,6 +181,8 @@ contract('IFOFirstRound', accounts => {
 
   it('should reserve the tokens to project and founders', async () => {
 
+    const balanceBefore = (await web3.eth.getBalance(project)).valueOf()
+
     await firstRound.reserveTokensProjectAndFounders()
     const tokenSupply = await firstRound.tokenSupply()
     const projectReserve = (await firstRound.projectReserve()).valueOf()
@@ -208,6 +207,11 @@ contract('IFOFirstRound', accounts => {
 
     assert.equal(b1 + b5, b0 + b2 + b3 + b4 + b10 + b11 + b12)
     assert.equal(await firstRound.totalParticipants(), 7)
+
+    const balanceAfter = (await web3.eth.getBalance(project)).valueOf()
+    assert.isTrue(balanceAfter > balanceBefore + 3*1e18)
+
+
   })
 
   it('should throw an error trying to restart the distribution', async () => {
@@ -331,7 +335,8 @@ contract('IFOFirstRound', accounts => {
     await iterate(accounts[13], 10)
     await iterate(accounts[14], 10)
     await iterate(accounts[15], 10)
-    await iterate(accounts[16], 10)
+    await iterate(accounts[16], 9)
+    await secondRound.sendTransaction({from: accounts[16], value: web3.toWei(2, 'ether')})
 
     assert.equal(await token.balanceOf(accounts[10]), toNanoNIL(29000))
     assert.equal(await token.balanceOf(accounts[11]), toNanoNIL(29000))
@@ -340,6 +345,7 @@ contract('IFOFirstRound', accounts => {
     assert.equal(await token.balanceOf(accounts[14]), toNanoNIL(12800))
     assert.equal(await token.balanceOf(accounts[15]), toNanoNIL(12000))
     assert.equal(await token.balanceOf(accounts[16]), toNanoNIL(12000))
+
 
     assert.equal(await secondRound.totalSupply(), 295600)
 
@@ -388,6 +394,8 @@ contract('IFOFirstRound', accounts => {
     const projectReserve = toInt(await secondRound.projectReserve())
     const foundersReserve = toInt(await secondRound.foundersReserve())
 
+    const balanceBefore = (await web3.eth.getBalance(project)).valueOf()
+
     await secondRound.reserveTokensProjectAndFounders()
 
     const tokenSupply = toInt(await secondRound.tokenSupply())
@@ -396,6 +404,10 @@ contract('IFOFirstRound', accounts => {
     assert.isTrue(await secondRound.projectFoundersReserved())
     assert.equal(await token.balanceOf(project), projectBalance + tokenSupply * projectReserve / 100)
     assert.equal(await token.balanceOf(founders), foundersBalance + tokenSupply * foundersReserve / 100)
+
+    const balanceAfter = (await web3.eth.getBalance(project)).valueOf()
+    assert.isTrue(balanceAfter >= balanceBefore + 2*1e18)
+
   })
 
   it('should throw if trying to close the distribution', async () => {

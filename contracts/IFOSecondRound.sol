@@ -193,9 +193,6 @@ contract IFOSecondRound is Ownable {
 
     require(balance < limit);
 
-    // any value is considered a donation to the project
-    project.transfer(msg.value);
-
     uint tokensToBeMinted = _toNanoNIL(getTokensAmount());
 
     if (balance > 0 && balance + tokensToBeMinted > limit) {
@@ -227,7 +224,7 @@ contract IFOSecondRound is Ownable {
 
   function startDistribution(uint _startBlock, uint _duration) public onlyOwner onlyState("InBetween") {
     require(_startBlock > block.number);
-    require(_duration > 0);
+    require(_duration > 0 && _duration < 30000);
 
     maxPerWallet = 100000;
     duration = _duration;
@@ -245,6 +242,10 @@ contract IFOSecondRound is Ownable {
     amount = tokenSupply.mul(foundersReserve).div(100);
     token.mint(founders, amount);
     projectFoundersReserved = true;
+
+    if (this.balance > 0) {
+      project.transfer(this.balance);
+    }
   }
 
   function unpauseAndFinishMinting() public onlyOwner onlyState("Ended") {
