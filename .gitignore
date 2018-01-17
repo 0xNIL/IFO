@@ -16,3 +16,4 @@ coverage
 *.lock
 .node-*
 installed_contracts
+.env
