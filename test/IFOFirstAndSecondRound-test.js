@@ -221,6 +221,11 @@ contract('IFOFirstRound', accounts => {
     await assertRevert(firstRound.startPreDistribution(preStartBlock, preDuration, project, founders))
   })
 
+
+
+  // phase two:
+
+
   it('should assign the ownership of the token to the second round' , async () => {
     assert.equal(await token.owner(), firstRound.address)
     await firstRound.transferTokenOwnership(secondRound.address)
@@ -254,6 +259,8 @@ contract('IFOFirstRound', accounts => {
     }
 
   })
+
+  //
 
   it('should add two collaborators: accounts[6] and accounts[7]', async () => {
     await secondRound.updateReserveCollaborator(accounts[6], 10)

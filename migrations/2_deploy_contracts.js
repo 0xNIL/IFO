@@ -1,5 +1,5 @@
-var IFOFirstRound = artifacts.require("./IFOFirstRound")
+var IFOSecondRound = artifacts.require("./IFOSecondRound")
 
 module.exports = function(deployer) {
-  deployer.deploy(IFOFirstRound);
-};
+  deployer.deploy(IFOSecondRound)
+}
