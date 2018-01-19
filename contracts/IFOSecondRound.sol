@@ -253,7 +253,7 @@ contract IFOSecondRound is Ownable {
 
     token.unpause();
     token.finishMinting();
-    token.transferOwnership(owner)
+    token.transferOwnership(owner);
   }
 
   function totalSupply() public constant returns (uint){
