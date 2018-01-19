@@ -14,7 +14,7 @@ module.exports = {
       host: "localhost",
       port: 8546,
       network_id: "11",
-      gas: 4612388
+      gas: 3200000
     },
     rinkeby: {
       provider: function() {

@@ -12,8 +12,6 @@ import './NILToken.sol';
 contract IFOFirstRound is Ownable {
   using SafeMath for uint;
 
-  uint8 public me = 231;
-
   NILToken public token;
 
   uint public maxPerWallet = 30000;

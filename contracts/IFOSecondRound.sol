@@ -8,7 +8,6 @@ import './NILToken.sol';
 
 contract IFOFirstRoundAbstract is Ownable{
   NILToken public token;
-  uint public me;
   address public project;
   address public founders;
   uint public totalParticipants;
@@ -60,16 +59,16 @@ contract IFOSecondRound is Ownable {
   function getValuesFromFirstRound(address _firstRound, address _token) public onlyOwner  onlyState("Waiting"){
 
     IFOFirstRoundAbstract firstRound = IFOFirstRoundAbstract(_firstRound);
-    token = NILToken(_token);
-
-    require(firstRound.me() == 231);
-    require(token.me() == 167);
-
     project = firstRound.project();
     founders = firstRound.founders();
+    require(project != address(0));
+    require(founders != address(0));
+
     baseAmount = firstRound.baseAmount();
     totalParticipants = firstRound.totalParticipants();
+    token = NILToken(_token);
     initialTotalSupply = token.totalSupply();
+    require(initialTotalSupply > 0);
   }
 
 
@@ -254,6 +253,7 @@ contract IFOSecondRound is Ownable {
 
     token.unpause();
     token.finishMinting();
+    token.transferOwnership(owner)
   }
 
   function totalSupply() public constant returns (uint){

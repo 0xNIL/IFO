@@ -8,6 +8,6 @@
   },
   "scripts": {
     "testServer": "ganache-cli -a 20",
-    "deployToRinkeby": "source ../ifo-rinkeby.env && truffle migrate --network rinkeby"
+    "deployToRinkeby": "rm -rf build && source ../ifo-rinkeby.env && truffle migrate --network rinkeby"
   }
 }

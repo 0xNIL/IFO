@@ -358,6 +358,10 @@ contract('IFOFirstRound', accounts => {
 
   })
 
+  it('should revert if account 0 tries to transfer tokens to account 10', async () => {
+    await assertRevert(token.transfer(accounts[10], toNanoNIL(100)))
+  })
+
   it('should assign tokens to accounts 4 until reaches the maxPerWallet of 100000 tokens', async () => {
 
     assert.equal(await secondRound.getTokensAmount(), 1200)
@@ -441,10 +445,16 @@ contract('IFOFirstRound', accounts => {
   })
 
   it('should unpause the token and stop minting', async () => {
+    assert.isTrue(await token.paused())
+    assert.isFalse(await token.mintingFinished())
+    assert.isTrue(await isCurrentState('Ended'))
+    assert.equal(await token.owner(), secondRound.address)
+
     await secondRound.unpauseAndFinishMinting()
     assert.isFalse(await token.paused())
     assert.isTrue(await token.mintingFinished())
     assert.isTrue(await isCurrentState('Closed'))
+    assert.equal(await token.owner(), (await secondRound.owner()).valueOf())
   })
 
   it('should throw an error trying to restart the distribution', async () => {
@@ -472,6 +482,5 @@ contract('IFOFirstRound', accounts => {
     assert.equal(balance10b - balance10, toNanoNIL(100))
 
   })
-
 
 })

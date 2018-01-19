@@ -53,8 +53,9 @@ contract('NILToken', accounts => {
     assert.equal(await token.mintingFinished(), true)
   })
 
-  it('should be unable to pause after minting finished', async () => {
-    await assertRevert(token.pause())
+  it('should transfer 2 from account 0 to account 1', async () => {
+    await token.transfer(accounts[1], 1)
+    assert.equal(await token.balanceOf(accounts[1]), 8)
   })
 
 })
