@@ -18,3 +18,4 @@ coverage
 installed_contracts
 *.env
 /flattened
+/linked
