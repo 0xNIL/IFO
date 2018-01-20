@@ -4,15 +4,35 @@ pragma solidity ^0.4.18;
 import 'zeppelin/math/SafeMath.sol';
 import 'zeppelin/ownership/Ownable.sol';
 
-import './NILToken.sol';
+contract NILTokenInterface is Ownable {
+  uint8 public decimals;
+  bool public paused;
+  bool public mintingFinished;
+  uint256 public totalSupply;
 
+  modifier canMint() {
+    require(!mintingFinished);
+    _;
+  }
+
+  modifier whenNotPaused() {
+    require(!paused);
+    _;
+  }
+
+  function balanceOf(address who) public constant returns (uint256);
+
+  function mint(address _to, uint256 _amount) onlyOwner canMint public returns (bool);
+
+  function pause() onlyOwner whenNotPaused public;
+}
 
 // @dev Handles the pre-IFO
 
 contract IFOFirstRound is Ownable {
   using SafeMath for uint;
 
-  NILToken public token;
+  NILTokenInterface public token;
 
   uint public maxPerWallet = 30000;
 
@@ -125,7 +145,7 @@ contract IFOFirstRound is Ownable {
     require(_project != address(0));
     require(_founders != address(0));
 
-    token = NILToken(_token);
+    token = NILTokenInterface(_token);
     token.pause();
     require(token.paused());
 

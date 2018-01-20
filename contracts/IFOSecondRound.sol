@@ -4,10 +4,7 @@ pragma solidity ^0.4.18;
 import 'zeppelin/math/SafeMath.sol';
 import 'zeppelin/ownership/Ownable.sol';
 
-import './NILToken.sol';
-
-contract IFOFirstRoundAbstract is Ownable{
-  NILToken public token;
+contract IFOFirstRoundInterface is Ownable {
   address public project;
   address public founders;
   uint public totalParticipants;
@@ -15,6 +12,30 @@ contract IFOFirstRoundAbstract is Ownable{
   uint public baseAmount;
 }
 
+contract NILTokenInterface is Ownable {
+  uint8 public decimals;
+  bool public paused;
+  bool public mintingFinished;
+  uint256 public totalSupply;
+
+  modifier canMint() {
+    require(!mintingFinished);
+    _;
+  }
+
+  modifier whenPaused() {
+    require(paused);
+    _;
+  }
+
+  function balanceOf(address who) public constant returns (uint256);
+
+  function mint(address _to, uint256 _amount) onlyOwner canMint public returns (bool);
+
+  function unpause() onlyOwner whenPaused public;
+
+  function finishMinting() onlyOwner public returns (bool);
+}
 
 contract IFOSecondRound is Ownable {
   using SafeMath for uint;
@@ -23,8 +44,8 @@ contract IFOSecondRound is Ownable {
 
   event Log(uint _amount);
 
-  NILToken public token;
-//  IFOFirstRound internal firstRound;
+  NILTokenInterface public token;
+  //  IFOFirstRound internal firstRound;
 
   uint maxPerWallet = 100000;
 
@@ -56,9 +77,9 @@ contract IFOSecondRound is Ownable {
 
   uint public foundersReserve = 10;
 
-  function getValuesFromFirstRound(address _firstRound, address _token) public onlyOwner onlyState("Waiting"){
+  function getValuesFromFirstRound(address _firstRound, address _token) public onlyOwner onlyState("Waiting") {
 
-    IFOFirstRoundAbstract firstRound = IFOFirstRoundAbstract(_firstRound);
+    IFOFirstRoundInterface firstRound = IFOFirstRoundInterface(_firstRound);
     project = firstRound.project();
     founders = firstRound.founders();
     require(project != address(0));
@@ -66,7 +87,7 @@ contract IFOSecondRound is Ownable {
 
     baseAmount = firstRound.baseAmount();
     totalParticipants = firstRound.totalParticipants();
-    token = NILToken(_token);
+    token = NILTokenInterface(_token);
     initialTotalSupply = token.totalSupply();
     require(initialTotalSupply > 0);
   }
