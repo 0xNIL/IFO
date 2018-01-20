@@ -56,7 +56,7 @@ contract IFOSecondRound is Ownable {
 
   uint public foundersReserve = 10;
 
-  function getValuesFromFirstRound(address _firstRound, address _token) public onlyOwner  onlyState("Waiting"){
+  function getValuesFromFirstRound(address _firstRound, address _token) public onlyOwner onlyState("Waiting"){
 
     IFOFirstRoundAbstract firstRound = IFOFirstRoundAbstract(_firstRound);
     project = firstRound.project();

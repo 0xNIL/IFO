@@ -44,8 +44,17 @@ contract('IFOFirstRound', accounts => {
   }
 
   before(async () => {
+    token = await NILToken.new()
     firstRound = await IFOFirstRound.new()
     secondRound =  await IFOSecondRound.new()
+  })
+
+  it('should revert trying to initiate the preDistribution without a deployed token address', async () => {
+    current = web3.eth.blockNumber
+    preStartBlock = current + 5
+    preDuration = 20
+    preEndBlock = preStartBlock + preDuration
+    await assertRevert(firstRound.startPreDistribution(preStartBlock, preDuration, project, founders, accounts[10]))
   })
 
   it('should be inactive', async () => {
@@ -56,14 +65,18 @@ contract('IFOFirstRound', accounts => {
     await assertRevert(firstRound.reserveTokensProjectAndFounders())
   })
 
+  it('should allow accounts[0] to change the ownership of the token making firstRound the owner', async () => {
+    assert.equal(await token.owner(), accounts[0])
+    await token.transferOwnership(firstRound.address)
+    assert.equal(await token.owner(), firstRound.address)
+  })
+
   it('should initiate the preDistribution', async () => {
     current = web3.eth.blockNumber
     preStartBlock = current + 5
     preDuration = 20
     preEndBlock = preStartBlock + preDuration
-    await firstRound.startPreDistribution(preStartBlock, preDuration, project, founders)
-
-    token = NILToken.at(await firstRound.token())
+    await firstRound.startPreDistribution(preStartBlock, preDuration, project, founders, token.address)
 
     assert.isTrue(await isCurrentState('PreDistInitiated'))
     assert.equal(await firstRound.preEndBlock(), preEndBlock)
@@ -218,7 +231,7 @@ contract('IFOFirstRound', accounts => {
     current = web3.eth.blockNumber
     startBlock = current + 5
     duration = 200
-    await assertRevert(firstRound.startPreDistribution(preStartBlock, preDuration, project, founders))
+    await assertRevert(firstRound.startPreDistribution(preStartBlock, preDuration, project, founders, token.address))
   })
 
 

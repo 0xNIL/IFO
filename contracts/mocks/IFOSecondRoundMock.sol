@@ -47,15 +47,4 @@ contract IFOSecondRoundMock is IFOSecondRound {
     return string(bytesStringTrimmed);
   }
 
-  function startDistribution(uint _startBlock, uint _duration) public onlyOwner onlyState("InBetween") {
-    require(_startBlock > block.number);
-    require(_duration > 100 && _duration < 300);
-
-    maxPerWallet = 100000;
-    duration = _duration;
-    startBlock = _startBlock;
-    endBlock = _startBlock + _duration;
-  }
-
-
 }

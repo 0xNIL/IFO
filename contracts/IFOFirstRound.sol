@@ -42,11 +42,6 @@ contract IFOFirstRound is Ownable {
 
   uint public foundersReserve = 15;
 
-  function IFOFirstRound() public {
-    token = new NILToken();
-    token.pause();
-  }
-
   // states
 
   modifier onlyState(bytes32 expectedState) {
@@ -123,12 +118,16 @@ contract IFOFirstRound is Ownable {
     }
   }
 
-  function startPreDistribution(uint _startBlock, uint _duration, address _project, address _founders) public onlyOwner onlyState("Inactive") {
+  function startPreDistribution(uint _startBlock, uint _duration, address _project, address _founders, address _token) public onlyOwner onlyState("Inactive") {
     require(_startBlock > block.number);
     require(_duration > 0 && _duration < 30000);
     require(msg.sender != address(0));
     require(_project != address(0));
     require(_founders != address(0));
+
+    token = NILToken(_token);
+    token.pause();
+    require(token.paused());
 
     project = _project;
     founders = _founders;
