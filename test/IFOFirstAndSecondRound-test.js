@@ -44,8 +44,17 @@ contract('IFOFirstRound', accounts => {
   }
 
   before(async () => {
+    token = await NILToken.new()
     firstRound = await IFOFirstRound.new()
     secondRound =  await IFOSecondRound.new()
+  })
+
+  it('should revert trying to initiate the preDistribution without a deployed token address', async () => {
+    current = web3.eth.blockNumber
+    preStartBlock = current + 5
+    preDuration = 20
+    preEndBlock = preStartBlock + preDuration
+    await assertRevert(firstRound.startPreDistribution(preStartBlock, preDuration, project, founders, accounts[10]))
   })
 
   it('should be inactive', async () => {
@@ -56,18 +65,23 @@ contract('IFOFirstRound', accounts => {
     await assertRevert(firstRound.reserveTokensProjectAndFounders())
   })
 
+  it('should allow accounts[0] to change the ownership of the token making firstRound the owner', async () => {
+    assert.equal(await token.owner(), accounts[0])
+    await token.transferOwnership(firstRound.address)
+    assert.equal(await token.owner(), firstRound.address)
+  })
+
   it('should initiate the preDistribution', async () => {
     current = web3.eth.blockNumber
     preStartBlock = current + 5
     preDuration = 20
     preEndBlock = preStartBlock + preDuration
-    await firstRound.startPreDistribution(preStartBlock, preDuration, project, founders)
-
-    token = NILToken.at(await firstRound.token())
+    await firstRound.startPreDistribution(preStartBlock, preDuration, project, founders, token.address)
 
     assert.isTrue(await isCurrentState('PreDistInitiated'))
     assert.equal(await firstRound.preEndBlock(), preEndBlock)
   })
+
 
   it('should throw sending ethers too early', async () => {
 
@@ -99,13 +113,9 @@ contract('IFOFirstRound', accounts => {
     assert.equal(await token.balanceOf(founders), 0)
   })
 
-  it('should receive a donation from account 2 during the request', async () => {
+  it('should set a donation from account 2 during the request', async () => {
 
-    const balanceBefore = (await web3.eth.getBalance(project)).valueOf()
-    await firstRound.sendTransaction({from: accounts[2], value: web3.toWei(1, 'ether')})
-    const balanceAfter = (await web3.eth.getBalance(project)).valueOf()
-
-    assert.equal(web3.fromWei(balanceAfter.valueOf() - balanceBefore.valueOf(), 'ether'), 1)
+    await firstRound.sendTransaction({from: accounts[2], value: web3.toWei(3, 'ether')})
     assert.equal(await token.balanceOf(accounts[2]), toNanoNIL(10000))
   })
 
@@ -184,6 +194,8 @@ contract('IFOFirstRound', accounts => {
 
   it('should reserve the tokens to project and founders', async () => {
 
+    const balanceBefore = (await web3.eth.getBalance(project)).valueOf()
+
     await firstRound.reserveTokensProjectAndFounders()
     const tokenSupply = await firstRound.tokenSupply()
     const projectReserve = (await firstRound.projectReserve()).valueOf()
@@ -208,14 +220,24 @@ contract('IFOFirstRound', accounts => {
 
     assert.equal(b1 + b5, b0 + b2 + b3 + b4 + b10 + b11 + b12)
     assert.equal(await firstRound.totalParticipants(), 7)
+
+    const balanceAfter = (await web3.eth.getBalance(project)).valueOf()
+    assert.isTrue(balanceAfter > balanceBefore + 3*1e18)
+
+
   })
 
   it('should throw an error trying to restart the distribution', async () => {
     current = web3.eth.blockNumber
     startBlock = current + 5
     duration = 200
-    await assertRevert(firstRound.startPreDistribution(preStartBlock, preDuration, project, founders))
+    await assertRevert(firstRound.startPreDistribution(preStartBlock, preDuration, project, founders, token.address))
   })
+
+
+
+  // phase two:
+
 
   it('should assign the ownership of the token to the second round' , async () => {
     assert.equal(await token.owner(), firstRound.address)
@@ -250,6 +272,8 @@ contract('IFOFirstRound', accounts => {
     }
 
   })
+
+  //
 
   it('should add two collaborators: accounts[6] and accounts[7]', async () => {
     await secondRound.updateReserveCollaborator(accounts[6], 10)
@@ -331,7 +355,8 @@ contract('IFOFirstRound', accounts => {
     await iterate(accounts[13], 10)
     await iterate(accounts[14], 10)
     await iterate(accounts[15], 10)
-    await iterate(accounts[16], 10)
+    await iterate(accounts[16], 9)
+    await secondRound.sendTransaction({from: accounts[16], value: web3.toWei(2, 'ether')})
 
     assert.equal(await token.balanceOf(accounts[10]), toNanoNIL(29000))
     assert.equal(await token.balanceOf(accounts[11]), toNanoNIL(29000))
@@ -341,8 +366,13 @@ contract('IFOFirstRound', accounts => {
     assert.equal(await token.balanceOf(accounts[15]), toNanoNIL(12000))
     assert.equal(await token.balanceOf(accounts[16]), toNanoNIL(12000))
 
+
     assert.equal(await secondRound.totalSupply(), 295600)
 
+  })
+
+  it('should revert if account 0 tries to transfer tokens to account 10', async () => {
+    await assertRevert(token.transfer(accounts[10], toNanoNIL(100)))
   })
 
   it('should assign tokens to accounts 4 until reaches the maxPerWallet of 100000 tokens', async () => {
@@ -388,6 +418,8 @@ contract('IFOFirstRound', accounts => {
     const projectReserve = toInt(await secondRound.projectReserve())
     const foundersReserve = toInt(await secondRound.foundersReserve())
 
+    const balanceBefore = (await web3.eth.getBalance(project)).valueOf()
+
     await secondRound.reserveTokensProjectAndFounders()
 
     const tokenSupply = toInt(await secondRound.tokenSupply())
@@ -396,6 +428,10 @@ contract('IFOFirstRound', accounts => {
     assert.isTrue(await secondRound.projectFoundersReserved())
     assert.equal(await token.balanceOf(project), projectBalance + tokenSupply * projectReserve / 100)
     assert.equal(await token.balanceOf(founders), foundersBalance + tokenSupply * foundersReserve / 100)
+
+    const balanceAfter = (await web3.eth.getBalance(project)).valueOf()
+    assert.isTrue(balanceAfter >= balanceBefore + 2*1e18)
+
   })
 
   it('should throw if trying to close the distribution', async () => {
@@ -422,10 +458,16 @@ contract('IFOFirstRound', accounts => {
   })
 
   it('should unpause the token and stop minting', async () => {
+    assert.isTrue(await token.paused())
+    assert.isFalse(await token.mintingFinished())
+    assert.isTrue(await isCurrentState('Ended'))
+    assert.equal(await token.owner(), secondRound.address)
+
     await secondRound.unpauseAndFinishMinting()
     assert.isFalse(await token.paused())
     assert.isTrue(await token.mintingFinished())
     assert.isTrue(await isCurrentState('Closed'))
+    assert.equal(await token.owner(), (await secondRound.owner()).valueOf())
   })
 
   it('should throw an error trying to restart the distribution', async () => {
@@ -453,6 +495,5 @@ contract('IFOFirstRound', accounts => {
     assert.equal(balance10b - balance10, toNanoNIL(100))
 
   })
-
 
 })

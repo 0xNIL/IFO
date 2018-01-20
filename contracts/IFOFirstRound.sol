@@ -4,17 +4,35 @@ pragma solidity ^0.4.18;
 import 'zeppelin/math/SafeMath.sol';
 import 'zeppelin/ownership/Ownable.sol';
 
-import './NILToken.sol';
+contract NILTokenInterface is Ownable {
+  uint8 public decimals;
+  bool public paused;
+  bool public mintingFinished;
+  uint256 public totalSupply;
 
+  modifier canMint() {
+    require(!mintingFinished);
+    _;
+  }
+
+  modifier whenNotPaused() {
+    require(!paused);
+    _;
+  }
+
+  function balanceOf(address who) public constant returns (uint256);
+
+  function mint(address _to, uint256 _amount) onlyOwner canMint public returns (bool);
+
+  function pause() onlyOwner whenNotPaused public;
+}
 
 // @dev Handles the pre-IFO
 
 contract IFOFirstRound is Ownable {
   using SafeMath for uint;
 
-  uint8 public me = 231;
-
-  NILToken public token;
+  NILTokenInterface public token;
 
   uint public maxPerWallet = 30000;
 
@@ -43,11 +61,6 @@ contract IFOFirstRound is Ownable {
   uint public projectReserve = 35;
 
   uint public foundersReserve = 15;
-
-  function IFOFirstRound() public {
-    token = new NILToken();
-    token.pause();
-  }
 
   // states
 
@@ -85,7 +98,7 @@ contract IFOFirstRound is Ownable {
 
   // requiring NIL
 
-  function() public payable {
+  function() external payable {
     _getTokens();
   }
 
@@ -107,9 +120,6 @@ contract IFOFirstRound is Ownable {
 
     require(balance < limit);
 
-    // any value is considered a donation to the project
-    project.transfer(msg.value);
-
     uint tokensToBeMinted = _toNanoNIL(getTokensAmount());
 
     if (balance > 0 && balance + tokensToBeMinted > limit) {
@@ -128,12 +138,16 @@ contract IFOFirstRound is Ownable {
     }
   }
 
-  function startPreDistribution(uint _startBlock, uint _duration, address _project, address _founders) public onlyOwner onlyState("Inactive") {
+  function startPreDistribution(uint _startBlock, uint _duration, address _project, address _founders, address _token) public onlyOwner onlyState("Inactive") {
     require(_startBlock > block.number);
-    require(_duration > 0);
+    require(_duration > 0 && _duration < 30000);
     require(msg.sender != address(0));
     require(_project != address(0));
     require(_founders != address(0));
+
+    token = NILTokenInterface(_token);
+    token.pause();
+    require(token.paused());
 
     project = _project;
     founders = _founders;
@@ -152,6 +166,10 @@ contract IFOFirstRound is Ownable {
     amount = tokenSupply.mul(foundersReserve).div(100);
     token.mint(founders, amount);
     projectFoundersReserved = true;
+
+    if (this.balance > 0) {
+      project.transfer(this.balance);
+    }
   }
 
   function totalSupply() public constant returns (uint){

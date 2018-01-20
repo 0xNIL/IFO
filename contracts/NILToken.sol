@@ -12,10 +12,4 @@ contract NILToken is MintableToken, PausableToken {
 
   uint8 public decimals = 9;
 
-  uint8 public me = 167;
-
-  function pause() onlyOwner whenNotPaused canMint public {
-    super.pause();
-  }
-
 }
