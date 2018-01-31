@@ -28,11 +28,17 @@ contract NILTokenInterface is Ownable {
     _;
   }
 
+  modifier whenNotPaused() {
+    require(!paused);
+    _;
+  }
+
   function balanceOf(address who) public constant returns (uint256);
 
   function mint(address _to, uint256 _amount) onlyOwner canMint public returns (bool);
 
   function unpause() onlyOwner whenPaused public;
+  function pause() onlyOwner whenNotPaused public;
 
   function finishMinting() onlyOwner public returns (bool);
 }
