@@ -6,24 +6,26 @@ More info at [0xNIL.org](http://0xNIL.org)
 
 ### Testing
 
-Install `testrpc` and `truffle`:
+Install `ganache-cli` and `truffle`:
 
 ```
-npm install -g testrpc truffle
+npm install -g ganache-cli truffle
 ```
 
 Install the dependencies
 ```
 npm install
+truffle install
 ```
 
 Run `testrpc` generating 20 accounts:
 ```
-testrpc -a 20
+npm run testServer
 ```
 
-Run the tests:
+And, in another terminal, run the tests:
 ```
 truffle test
 
 ```
+
