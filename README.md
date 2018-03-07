@@ -2,7 +2,7 @@
 
 Contracts for the NIL token and the related IFO
 
-More info at [0xNIL.org](http://0xNIL.org)
+More info at [0xNIL.com](http://0xNIL.com)
 
 ### Testing
 
