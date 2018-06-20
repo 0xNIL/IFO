@@ -3,12 +3,7 @@
   "version": "0.0.1",
   "description": "The 0xNIL factory",
   "devDependencies": {},
-  "dependencies": {
-    "truffle-hdwallet-provider": "0.0.3"
-  },
   "scripts": {
-    "testServer": "ganache-cli -a 20",
-    "deployToRinkeby": "rm -rf build && source ../ifo-rinkeby.env && truffle migrate --network rinkeby",
-    "deployToMainnet": "rm -rf build && source ../ifo-mainnet.env && truffle migrate --network mainnet"
+    "testServer": "ganache-cli -a 20"
   }
 }
