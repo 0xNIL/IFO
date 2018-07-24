@@ -1,10 +1,11 @@
 /* globals Promise */
 
 const assertRevert = require('./helpers/assertRevert')
-
+const log = require('./helpers/log')
 const NILToken = artifacts.require('./NILToken.sol')
 const IFOFirstRound = artifacts.require('./mocks/IFOFirstRoundMock.sol')
 const IFOSecondRound = artifacts.require('./mocks/IFOSecondRoundMock.sol')
+const Whitelist = artifacts.require('./Whitelist.sol')
 
 function toNanoNIL(amount) {
   return amount * 1e9
@@ -23,7 +24,7 @@ function toInt(x) {
   return parseInt(x.valueOf(), 10)
 }
 
-contract('IFOFirstRound', accounts => {
+contract('IFO First Round and Second', accounts => {
 
   let current
 
@@ -37,6 +38,12 @@ contract('IFOFirstRound', accounts => {
   let token
   let firstRound
   let secondRound
+  let whitelist
+
+  const hashAddress = address => {
+    return web3.sha3(address + '9554a9d6fa')
+  }
+
 
   let isCurrentState = async expectedState => {
     const currentState = (await firstRound.getCurrentState()).valueOf()
@@ -46,7 +53,8 @@ contract('IFOFirstRound', accounts => {
   before(async () => {
     token = await NILToken.new()
     firstRound = await IFOFirstRound.new()
-    secondRound =  await IFOSecondRound.new()
+    secondRound = await IFOSecondRound.new()
+    whitelist = await Whitelist.new()
   })
 
   it('should revert trying to initiate the preDistribution without a deployed token address', async () => {
@@ -97,8 +105,13 @@ contract('IFOFirstRound', accounts => {
         await firstRound.sendTransaction({from: accounts[0], value: 0})
         return await firstRound.acceptingRequests()
       } catch (err) {
-        assert.isTrue(await isCurrentState('PreDistInitiated'))
-        return await iterate()
+        let state = (await firstRound.getCurrentState()).valueOf()
+        if (state === 'PreDistInitiated') {
+          return await iterate()
+        } else {
+          await firstRound.sendTransaction({from: accounts[0], value: 0})
+          return await firstRound.acceptingRequests()
+        }
       }
     }
 
@@ -222,7 +235,7 @@ contract('IFOFirstRound', accounts => {
     assert.equal(await firstRound.totalParticipants(), 7)
 
     const balanceAfter = (await web3.eth.getBalance(project)).valueOf()
-    assert.isTrue(balanceAfter > balanceBefore + 3*1e18)
+    assert.isTrue(balanceAfter > balanceBefore + 3 * 1e18)
 
 
   })
@@ -235,22 +248,41 @@ contract('IFOFirstRound', accounts => {
   })
 
 
+  //////////////// SECOND ROUND
 
-  // phase two:
 
-
-  it('should assign the ownership of the token to the second round' , async () => {
+  it('should assign the ownership of the token to the second round', async () => {
     assert.equal(await token.owner(), firstRound.address)
     await firstRound.transferTokenOwnership(secondRound.address)
     assert.equal(await token.owner(), secondRound.address)
   })
 
-  it('should revert if getValuesFromFirstRound is called with wrong addresses', async () =>{
-      await assertRevert(secondRound.getValuesFromFirstRound(accounts[19], token.address))
+  it('should revert if getValuesFromFirstRound is called with wrong addresses', async () => {
+    await assertRevert(secondRound.getValuesFromFirstRound(accounts[19], token.address))
     await assertRevert(secondRound.getValuesFromFirstRound(firstRound.address, accounts[18]))
   })
 
-  it('should initialize the second round' , async () => {
+  it('should revert if getValuesFromFirstRound is called before setting the whitelister', async () => {
+    await assertRevert(secondRound.getValuesFromFirstRound(firstRound.address, token.address))
+  })
+
+  it('should set the whitelist contract and whitelist the accounts', async () => {
+
+    isCurrentState = async expectedState => {
+      const currentState = (await secondRound.getCurrentState()).valueOf()
+      return expectedState == currentState
+    }
+
+    assert.isTrue(await isCurrentState('PreConfig'))
+    await secondRound.setWhitelist(whitelist.address)
+    assert.isTrue(await isCurrentState('Waiting'))
+
+    await whitelist.whitelist(accounts[0])
+    assert.isTrue(await whitelist.whitelisted(accounts[0]))
+
+  })
+
+  it('should initialize the second round', async () => {
 
     const initialTotalSupply = (await token.totalSupply()).valueOf()
 
@@ -265,11 +297,6 @@ contract('IFOFirstRound', accounts => {
     assert.equal(await token.balanceOf(accounts[0]), toNanoNIL(5000))
 
     assert.equal(await secondRound.initialTotalSupply(), initialTotalSupply)
-
-    isCurrentState = async expectedState => {
-      const currentState = (await secondRound.getCurrentState()).valueOf()
-      return expectedState == currentState
-    }
 
   })
 
@@ -309,7 +336,7 @@ contract('IFOFirstRound', accounts => {
   it('should initiate the distribution', async () => {
     current = web3.eth.blockNumber
     startBlock = current + 5
-    duration = 140
+    duration = 160
     endBlock = startBlock + duration
     await secondRound.startDistribution(startBlock, duration)
 
@@ -332,6 +359,22 @@ contract('IFOFirstRound', accounts => {
 
     assert.isTrue(await iterate())
     assert.equal(await secondRound.getTokensAmount(), 1400)
+
+  })
+
+  it('should revert trying to request token not being whitelisted', async () => {
+
+    assert.isFalse(await whitelist.whitelisted(accounts[2]))
+    await assertRevert(secondRound.sendTransaction({from: accounts[2], value: 0}))
+  })
+
+  it('should accept requests after whitelisting the users', async () => {
+
+    const addresses = [
+      accounts[1], accounts[2], accounts[4], accounts[10], accounts[11], accounts[12], accounts[13], accounts[14], accounts[15], accounts[16]
+    ]
+    await whitelist.whitelist10Addresses(addresses)
+    assert.isTrue(await whitelist.whitelisted(accounts[2]))
 
     await secondRound.sendTransaction({from: accounts[2], value: 0})
 
@@ -358,36 +401,46 @@ contract('IFOFirstRound', accounts => {
     await iterate(accounts[16], 9)
     await secondRound.sendTransaction({from: accounts[16], value: web3.toWei(2, 'ether')})
 
+    await secondRound.sendTransaction({from: accounts[4], value: 0})
+
     assert.equal(await token.balanceOf(accounts[10]), toNanoNIL(29000))
     assert.equal(await token.balanceOf(accounts[11]), toNanoNIL(29000))
     assert.equal(await token.balanceOf(accounts[12]), toNanoNIL(24000))
     assert.equal(await token.balanceOf(accounts[13]), toNanoNIL(14000))
-    assert.equal(await token.balanceOf(accounts[14]), toNanoNIL(12800))
+
+    assert.equal(await token.balanceOf(accounts[14]), toNanoNIL(13800))
     assert.equal(await token.balanceOf(accounts[15]), toNanoNIL(12000))
     assert.equal(await token.balanceOf(accounts[16]), toNanoNIL(12000))
 
-
-    assert.equal(await secondRound.totalSupply(), 295600)
+    assert.equal(await secondRound.totalSupply(), 297800)
 
   })
+
 
   it('should revert if account 0 tries to transfer tokens to account 10', async () => {
     await assertRevert(token.transfer(accounts[10], toNanoNIL(100)))
   })
 
-  it('should assign tokens to accounts 4 until reaches the maxPerWallet of 100000 tokens', async () => {
+  it('should assign tokens to accounts 4 until reaches 99400 tokens', async () => {
 
     assert.equal(await secondRound.getTokensAmount(), 1200)
 
     // iterate to reach the maxPerWallet
-    while (fromNanoNIL((await token.balanceOf(accounts[4])).valueOf()) < 100000) {
+    while (fromNanoNIL((await token.balanceOf(accounts[4])).valueOf()) < 99000) {
       await secondRound.sendTransaction({from: accounts[4], value: 0})
     }
 
-    assert.equal(await secondRound.getTokensAmount(), 1000)
+    assert.equal(await token.balanceOf(accounts[4]), toNanoNIL(99200))
+
+  })
+
+  it('should assign last 800 tokens to accounts 4 reaching the maxPerWallet of 100000 tokens', async () => {
+
+    await secondRound.sendTransaction({from: accounts[4], value: 0})
     assert.equal(await token.balanceOf(accounts[4]), toNanoNIL(100000))
 
   })
+
 
   it('should throw if account 4 requests more tokens after reaching maxPerWallet', async () => {
     await assertRevert(secondRound.sendTransaction({from: accounts[4], value: 0}))
@@ -412,7 +465,7 @@ contract('IFOFirstRound', accounts => {
   it('should reserve the tokens to project and founders', async () => {
 
     const projectBalance = toInt(await token.balanceOf(project))
-    const foundersBalance  = toInt(await token.balanceOf(founders))
+    const foundersBalance = toInt(await token.balanceOf(founders))
     const totalSupplyBeforeReservation = toInt(await token.totalSupply())
     const initialTotalSupply = toInt(await secondRound.initialTotalSupply())
     const projectReserve = toInt(await secondRound.projectReserve())
@@ -430,7 +483,7 @@ contract('IFOFirstRound', accounts => {
     assert.equal(await token.balanceOf(founders), foundersBalance + tokenSupply * foundersReserve / 100)
 
     const balanceAfter = (await web3.eth.getBalance(project)).valueOf()
-    assert.isTrue(balanceAfter >= balanceBefore + 2*1e18)
+    assert.isTrue(balanceAfter >= balanceBefore + 2 * 1e18)
 
   })
 
@@ -441,7 +494,7 @@ contract('IFOFirstRound', accounts => {
   it('should reserve the tokens to collaborators', async () => {
 
     const tokenSupply = toInt(await secondRound.tokenSupply())
-    const foundersBalance  = toInt(await token.balanceOf(founders))
+    const foundersBalance = toInt(await token.balanceOf(founders))
 
     await secondRound.reserveTokensCollaborators()
 

@@ -1,8 +1,11 @@
-pragma solidity ^0.4.18;
+pragma solidity ^0.4.23;
 
 
-import 'zeppelin/math/SafeMath.sol';
-import 'zeppelin/ownership/Ownable.sol';
+import 'openzeppelin-solidity/contracts/math/SafeMath.sol';
+import 'openzeppelin-solidity/contracts/ownership/Ownable.sol';
+
+import './Whitelist.sol';
+import './NILToken.sol';
 
 contract IFOFirstRoundInterface is Ownable {
   address public project;
@@ -12,48 +15,15 @@ contract IFOFirstRoundInterface is Ownable {
   uint public baseAmount;
 }
 
-contract NILTokenInterface is Ownable {
-  uint8 public decimals;
-  bool public paused;
-  bool public mintingFinished;
-  uint256 public totalSupply;
-
-  modifier canMint() {
-    require(!mintingFinished);
-    _;
-  }
-
-  modifier whenPaused() {
-    require(paused);
-    _;
-  }
-
-  modifier whenNotPaused() {
-    require(!paused);
-    _;
-  }
-
-  function balanceOf(address who) public constant returns (uint256);
-
-  function mint(address _to, uint256 _amount) onlyOwner canMint public returns (bool);
-
-  function unpause() onlyOwner whenPaused public;
-  function pause() onlyOwner whenNotPaused public;
-
-  function finishMinting() onlyOwner public returns (bool);
-}
-
 contract IFOSecondRound is Ownable {
   using SafeMath for uint;
 
-  event TokenTradable();
+  NILToken public token;
 
-  event Log(uint _amount);
+  uint public maxPerWallet = 100000;
+  uint public cap;
 
-  NILTokenInterface public token;
-  //  IFOFirstRound internal firstRound;
-
-  uint maxPerWallet = 100000;
+  Whitelist public whitelist;
 
   address public project;
 
@@ -83,6 +53,10 @@ contract IFOSecondRound is Ownable {
 
   uint public foundersReserve = 10;
 
+  function setWhitelist(address addr) public onlyOwner onlyState("PreConfig"){
+    whitelist = Whitelist(addr);
+  }
+
   function getValuesFromFirstRound(address _firstRound, address _token) public onlyOwner onlyState("Waiting") {
 
     IFOFirstRoundInterface firstRound = IFOFirstRoundInterface(_firstRound);
@@ -93,7 +67,7 @@ contract IFOSecondRound is Ownable {
 
     baseAmount = firstRound.baseAmount();
     totalParticipants = firstRound.totalParticipants();
-    token = NILTokenInterface(_token);
+    token = NILToken(_token);
     initialTotalSupply = token.totalSupply();
     require(initialTotalSupply > 0);
   }
@@ -109,7 +83,10 @@ contract IFOSecondRound is Ownable {
   function currentState() public constant returns (bytes32) {
     uint bn = block.number;
 
-    if (baseAmount == 0) {
+    if (address(whitelist) == address(0)) {
+      return "PreConfig";
+    }
+    else if (baseAmount == 0) {
       return "Waiting";
     }
     else if (startBlock == 0) {
@@ -127,6 +104,11 @@ contract IFOSecondRound is Ownable {
     else {
       return "Closed";
     }
+  }
+
+  modifier isWhitelisted() {
+    require(whitelist.whitelisted(msg.sender));
+    _;
   }
 
   // collaborators
@@ -206,8 +188,7 @@ contract IFOSecondRound is Ownable {
     _getTokens();
   }
 
-  function _getTokens() internal {
-    require(currentState() == "PreDist" || currentState() == "Dist");
+  function _getTokens() internal isWhitelisted onlyState("Dist"){
     require(msg.sender != 0x0);
 
     uint balance = token.balanceOf(msg.sender);
@@ -269,8 +250,8 @@ contract IFOSecondRound is Ownable {
     token.mint(founders, amount);
     projectFoundersReserved = true;
 
-    if (this.balance > 0) {
-      project.transfer(this.balance);
+    if (address(this).balance > 0) {
+      project.transfer(address(this).balance);
     }
   }
 

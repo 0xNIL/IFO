@@ -1,8 +1,8 @@
 pragma solidity ^0.4.18;
 
 
-import 'zeppelin/token/MintableToken.sol';
-import 'zeppelin/token/PausableToken.sol';
+import 'openzeppelin-solidity/contracts/token/ERC20/MintableToken.sol';
+import 'openzeppelin-solidity/contracts/token/ERC20/PausableToken.sol';
 
 contract NILToken is MintableToken, PausableToken {
 

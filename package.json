@@ -2,7 +2,9 @@
   "name": "0xnil-factory",
   "version": "0.0.1",
   "description": "The 0xNIL factory",
-  "devDependencies": {},
+  "devDependencies": {
+    "openzeppelin-solidity": "^1.11.0"
+  },
   "scripts": {
     "testServer": "ganache-cli -a 20"
   }

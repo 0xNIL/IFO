@@ -1,8 +1,82 @@
-pragma solidity ^0.4.23;
+pragma solidity ^0.4.18;
+
+// File: zeppelin/math/SafeMath.sol
+
+/**
+ * @title SafeMath
+ * @dev Math operations with safety checks that throw on error
+ */
+library SafeMath {
+  function mul(uint256 a, uint256 b) internal constant returns (uint256) {
+    uint256 c = a * b;
+    assert(a == 0 || c / a == b);
+    return c;
+  }
+
+  function div(uint256 a, uint256 b) internal constant returns (uint256) {
+    // assert(b > 0); // Solidity automatically throws when dividing by 0
+    uint256 c = a / b;
+    // assert(a == b * c + a % b); // There is no case in which this doesn't hold
+    return c;
+  }
+
+  function sub(uint256 a, uint256 b) internal constant returns (uint256) {
+    assert(b <= a);
+    return a - b;
+  }
+
+  function add(uint256 a, uint256 b) internal constant returns (uint256) {
+    uint256 c = a + b;
+    assert(c >= a);
+    return c;
+  }
+}
+
+// File: zeppelin/ownership/Ownable.sol
+
+/**
+ * @title Ownable
+ * @dev The Ownable contract has an owner address, and provides basic authorization control
+ * functions, this simplifies the implementation of "user permissions".
+ */
+contract Ownable {
+  address public owner;
 
 
-import 'openzeppelin-solidity/contracts/math/SafeMath.sol';
-import 'openzeppelin-solidity/contracts/ownership/Ownable.sol';
+  event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
+
+
+  /**
+   * @dev The Ownable constructor sets the original `owner` of the contract to the sender
+   * account.
+   */
+  function Ownable() {
+    owner = msg.sender;
+  }
+
+
+  /**
+   * @dev Throws if called by any account other than the owner.
+   */
+  modifier onlyOwner() {
+    require(msg.sender == owner);
+    _;
+  }
+
+
+  /**
+   * @dev Allows the current owner to transfer control of the contract to a newOwner.
+   * @param newOwner The address to transfer ownership to.
+   */
+  function transferOwnership(address newOwner) onlyOwner public {
+    require(newOwner != address(0));
+    OwnershipTransferred(owner, newOwner);
+    owner = newOwner;
+  }
+
+}
+
+// File: contracts/IFOFirstRound.sol
 
 contract NILTokenInterface is Ownable {
   uint8 public decimals;
@@ -10,11 +84,21 @@ contract NILTokenInterface is Ownable {
   bool public mintingFinished;
   uint256 public totalSupply;
 
+  modifier canMint() {
+    require(!mintingFinished);
+    _;
+  }
+
+  modifier whenNotPaused() {
+    require(!paused);
+    _;
+  }
+
   function balanceOf(address who) public constant returns (uint256);
 
-  function mint(address _to, uint256 _amount) public returns (bool);
+  function mint(address _to, uint256 _amount) onlyOwner canMint public returns (bool);
 
-  function pause() public;
+  function pause() onlyOwner whenNotPaused public;
 }
 
 // @dev Handles the pre-IFO
@@ -157,8 +241,8 @@ contract IFOFirstRound is Ownable {
     token.mint(founders, amount);
     projectFoundersReserved = true;
 
-    if (address(this).balance > 0) {
-      project.transfer(address(this).balance);
+    if (this.balance > 0) {
+      project.transfer(this.balance);
     }
   }
 

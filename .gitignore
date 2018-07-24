@@ -17,5 +17,4 @@ coverage
 .node-*
 installed_contracts
 *.env
-/flattened
 /linked

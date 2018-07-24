@@ -1,9 +1,5 @@
-const token = artifacts.require("./NILToken")
-const firstRound = artifacts.require("./IFOFirstRound")
-// const secondRound = artifacts.require("./IFOSecondRound")
+// const token = artifacts.require("./NILToken")
 
 module.exports = function(deployer) {
-  deployer.deploy(token)
-  deployer.deploy(firstRound)
-  // deployer.deploy(secondRound)
+  // deployer.deploy(token)
 }
