@@ -5,7 +5,6 @@ import 'openzeppelin-solidity/contracts/math/SafeMath.sol';
 import 'openzeppelin-solidity/contracts/ownership/Ownable.sol';
 
 import './Whitelist.sol';
-import './NILToken.sol';
 
 contract IFOFirstRoundInterface is Ownable {
   address public project;
@@ -15,10 +14,41 @@ contract IFOFirstRoundInterface is Ownable {
   uint public baseAmount;
 }
 
+contract NILTokenInterface is Ownable {
+  uint8 public decimals;
+  bool public paused;
+  bool public mintingFinished;
+  uint256 public totalSupply;
+
+  modifier canMint() {
+    require(!mintingFinished);
+    _;
+  }
+
+  modifier whenPaused() {
+    require(paused);
+    _;
+  }
+
+  modifier whenNotPaused() {
+    require(!paused);
+    _;
+  }
+
+  function balanceOf(address who) public constant returns (uint256);
+
+  function mint(address _to, uint256 _amount) onlyOwner canMint public returns (bool);
+
+  function unpause() onlyOwner whenPaused public;
+  function pause() onlyOwner whenNotPaused public;
+
+  function finishMinting() onlyOwner public returns (bool);
+}
+
 contract IFOSecondRound is Ownable {
   using SafeMath for uint;
 
-  NILToken public token;
+  NILTokenInterface public token;
 
   uint public maxPerWallet = 100000;
   uint public cap;
@@ -67,7 +97,7 @@ contract IFOSecondRound is Ownable {
 
     baseAmount = firstRound.baseAmount();
     totalParticipants = firstRound.totalParticipants();
-    token = NILToken(_token);
+    token = NILTokenInterface(_token);
     initialTotalSupply = token.totalSupply();
     require(initialTotalSupply > 0);
   }
