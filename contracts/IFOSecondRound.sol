@@ -20,29 +20,14 @@ contract NILTokenInterface is Ownable {
   bool public mintingFinished;
   uint256 public totalSupply;
 
-  modifier canMint() {
-    require(!mintingFinished);
-    _;
-  }
-
-  modifier whenPaused() {
-    require(paused);
-    _;
-  }
-
-  modifier whenNotPaused() {
-    require(!paused);
-    _;
-  }
-
   function balanceOf(address who) public constant returns (uint256);
 
-  function mint(address _to, uint256 _amount) onlyOwner canMint public returns (bool);
+  function mint(address _to, uint256 _amount) public returns (bool);
 
-  function unpause() onlyOwner whenPaused public;
-  function pause() onlyOwner whenNotPaused public;
+  function unpause() public;
+  function pause() public;
 
-  function finishMinting() onlyOwner public returns (bool);
+  function finishMinting() public returns (bool);
 }
 
 contract IFOSecondRound is Ownable {
