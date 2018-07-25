@@ -277,7 +277,7 @@ contract('IFO First Round and Second', accounts => {
     await secondRound.setWhitelist(whitelist.address)
     assert.isTrue(await isCurrentState('Waiting'))
 
-    await whitelist.whitelist(accounts[0])
+    await whitelist.whitelist([accounts[0]])
     assert.isTrue(await whitelist.whitelisted(accounts[0]))
 
   })
@@ -373,7 +373,7 @@ contract('IFO First Round and Second', accounts => {
     const addresses = [
       accounts[1], accounts[2], accounts[4], accounts[10], accounts[11], accounts[12], accounts[13], accounts[14], accounts[15], accounts[16]
     ]
-    await whitelist.whitelist10Addresses(addresses)
+    await whitelist.whitelist(addresses)
     assert.isTrue(await whitelist.whitelisted(accounts[2]))
 
     await secondRound.sendTransaction({from: accounts[2], value: 0})
