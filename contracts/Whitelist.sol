@@ -5,17 +5,31 @@ import 'openzeppelin-solidity/contracts/ownership/HasNoEther.sol';
 
 contract Whitelist is HasNoEther {
 
+  bool public open = true;
+
   mapping(address => bool) public whitelisted;
   uint public totalWhitelisted;
   mapping(address => bool) public blacklisted;
   uint public totalBlacklisted;
+
+  modifier whenOpen() {
+    require(open);
+    _;
+  }
+
+  function close()
+  external
+  onlyOwner
+  {
+      open = false;
+  }
 
   function whitelist(
     address[] addrs
   )
   external
   onlyOwner
-  payable
+  whenOpen
   {
     for (uint a = 0; a < addrs.length; a++) {
       if (addrs[a] != address(0) && !whitelisted[addrs[a]] && !blacklisted[addrs[a]]) {
@@ -30,7 +44,6 @@ contract Whitelist is HasNoEther {
   )
   external
   onlyOwner
-  payable
   {
     for (uint a = 0; a < addrs.length; a++) {
       if (!blacklisted[addrs[a]]) {
@@ -49,7 +62,7 @@ contract Whitelist is HasNoEther {
   )
   external
   onlyOwner
-  payable
+  whenOpen
   {
     for (uint a = 0; a < addrs.length; a++) {
       if (whitelisted[addrs[a]]) {

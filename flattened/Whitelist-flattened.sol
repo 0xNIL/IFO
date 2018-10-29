@@ -107,50 +107,23 @@ contract HasNoEther is Ownable {
 
 contract Whitelist is HasNoEther {
 
+  bool public open = true;
+
   mapping(address => bool) public whitelisted;
   uint public totalWhitelisted;
+  mapping(address => bool) public blacklisted;
+  uint public totalBlacklisted;
 
-  function whitelist(
-    address addr
-  )
-  external
-  onlyOwner
-  payable
-  {
-    if (addr != address(0) && !whitelisted[addr]) {
-      whitelisted[addr] = true;
-      totalWhitelisted++;
-    }
+  modifier whenOpen() {
+    require(open);
+    _;
   }
 
-  function whitelist5Addresses(
-    address[5] addrs
-  )
+  function close()
   external
   onlyOwner
-  payable
   {
-    for (uint a = 0; a < addrs.length; a++) {
-      if (addrs[a] != address(0) && !whitelisted[addrs[a]]) {
-        whitelisted[addrs[a]] = true;
-        totalWhitelisted++;
-      }
-    }
-  }
-
-  function whitelist10Addresses(
-    address[10] addrs
-  )
-  external
-  onlyOwner
-  payable
-  {
-    for (uint a = 0; a < addrs.length; a++) {
-      if (addrs[a] != address(0) && !whitelisted[addrs[a]]) {
-        whitelisted[addrs[a]] = true;
-        totalWhitelisted++;
-      }
-    }
+      open = false;
   }
 
   function whitelist(
@@ -158,12 +131,48 @@ contract Whitelist is HasNoEther {
   )
   external
   onlyOwner
-  payable
+  whenOpen
   {
     for (uint a = 0; a < addrs.length; a++) {
-      if (addrs[a] != address(0) && !whitelisted[addrs[a]]) {
+      if (addrs[a] != address(0) && !whitelisted[addrs[a]] && !blacklisted[addrs[a]]) {
         whitelisted[addrs[a]] = true;
         totalWhitelisted++;
+      }
+    }
+  }
+
+  function blacklist(
+    address[] addrs
+  )
+  external
+  onlyOwner
+  {
+    for (uint a = 0; a < addrs.length; a++) {
+      if (!blacklisted[addrs[a]]) {
+        if (whitelisted[addrs[a]]) {
+          whitelisted[addrs[a]] = false;
+          totalWhitelisted--;
+        }
+        blacklisted[addrs[a]] = true;
+        totalBlacklisted++;
+      }
+    }
+  }
+
+  function reset(
+    address[] addrs
+  )
+  external
+  onlyOwner
+  whenOpen
+  {
+    for (uint a = 0; a < addrs.length; a++) {
+      if (whitelisted[addrs[a]]) {
+        whitelisted[addrs[a]] = false;
+        totalWhitelisted--;
+      } else if (blacklisted[addrs[a]]) {
+        blacklisted[addrs[a]] = false;
+        totalBlacklisted--;
       }
     }
   }
